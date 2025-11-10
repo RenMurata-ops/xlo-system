@@ -96,7 +96,7 @@ export default function FollowAccountsPage() {
     loadAccounts();
   }
 
-  const categories = ['all', ...new Set(accounts.map(acc => acc.category).filter(Boolean))];
+  const categories = ['all', ...new Set(accounts.map(acc => acc.category).filter((cat): cat is string => cat !== null))];
   const filteredAccounts = filterCategory === 'all'
     ? accounts
     : accounts.filter(acc => acc.category === filterCategory);
