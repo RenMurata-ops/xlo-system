@@ -21,19 +21,19 @@ export default function StatsCard({
   link
 }: StatsCardProps) {
   const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    purple: 'bg-purple-50 text-purple-600',
-    orange: 'bg-orange-50 text-orange-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
+    blue: 'bg-blue-500/20 text-blue-400',
+    green: 'bg-green-500/20 text-green-400',
+    purple: 'bg-purple-500/20 text-purple-400',
+    orange: 'bg-orange-500/20 text-orange-400',
+    yellow: 'bg-yellow-500/20 text-yellow-400',
   };
 
   const Card = (
-    <div className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6">
+    <div className="bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600 transition-all p-6">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <p className="text-sm text-gray-600 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
+          <p className="text-sm text-gray-400 mb-1">{title}</p>
+          <p className="text-3xl font-bold text-white">{value}</p>
           {subtitle && (
             <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
           )}
@@ -43,7 +43,7 @@ export default function StatsCard({
         </div>
       </div>
       {link && (
-        <div className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 transition">
+        <div className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300 transition">
           <span>詳細を見る</span>
           <ArrowRight size={16} />
         </div>

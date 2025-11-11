@@ -89,144 +89,146 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-gray-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   if (!stats) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-600">データの読み込みに失敗しました</p>
+      <div className="flex items-center justify-center min-h-screen bg-gray-950">
+        <p className="text-gray-400">データの読み込みに失敗しました</p>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">ダッシュボード</h1>
-          <p className="text-gray-600 mt-2">
-            XLO Systemの全体統計を確認します
-          </p>
+    <div className="min-h-screen bg-gray-950 p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white">ダッシュボード</h1>
+            <p className="text-gray-400 mt-2">
+              XLO Systemの全体統計を確認します
+            </p>
+          </div>
+          <button
+            onClick={loadStats}
+            className="flex items-center gap-2 px-4 py-2 text-gray-300 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition"
+          >
+            <RefreshCw size={20} />
+            更新
+          </button>
         </div>
-        <button
-          onClick={loadStats}
-          className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-        >
-          <RefreshCw size={20} />
-          更新
-        </button>
-      </div>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">アカウント管理</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            title="Twitter Apps"
-            value={stats.totalTwitterApps}
-            icon={<FileText size={24} />}
-            color="blue"
-            link="/twitter-apps"
-          />
-          <StatsCard
-            title="メインアカウント"
-            value={stats.totalMainAccounts}
-            subtitle={`アクティブ: ${stats.activeMainAccounts}`}
-            icon={<Users size={24} />}
-            color="green"
-            link="/accounts/main"
-          />
-          <StatsCard
-            title="フォローアカウント"
-            value={stats.totalFollowAccounts}
-            icon={<Users size={24} />}
-            color="purple"
-            link="/accounts/follow"
-          />
-          <StatsCard
-            title="スパムアカウント"
-            value={stats.totalSpamAccounts}
-            subtitle={`アクティブ: ${stats.activeSpamAccounts}`}
-            icon={<Users size={24} />}
-            color="orange"
-            link="/accounts/spam"
-          />
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-white mb-4">アカウント管理</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatsCard
+              title="Twitter Apps"
+              value={stats.totalTwitterApps}
+              icon={<FileText size={24} />}
+              color="blue"
+              link="/twitter-apps"
+            />
+            <StatsCard
+              title="メインアカウント"
+              value={stats.totalMainAccounts}
+              subtitle={`アクティブ: ${stats.activeMainAccounts}`}
+              icon={<Users size={24} />}
+              color="green"
+              link="/accounts/main"
+            />
+            <StatsCard
+              title="フォローアカウント"
+              value={stats.totalFollowAccounts}
+              icon={<Users size={24} />}
+              color="purple"
+              link="/accounts/follow"
+            />
+            <StatsCard
+              title="スパムアカウント"
+              value={stats.totalSpamAccounts}
+              subtitle={`アクティブ: ${stats.activeSpamAccounts}`}
+              icon={<Users size={24} />}
+              color="orange"
+              link="/accounts/spam"
+            />
+          </div>
         </div>
-      </div>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">コンテンツ & 自動化</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            title="投稿"
-            value={stats.totalPosts}
-            subtitle={`予約: ${stats.scheduledPosts}`}
-            icon={<MessageCircle size={24} />}
-            color="blue"
-            link="/posts"
-          />
-          <StatsCard
-            title="エンゲージメントルール"
-            value={stats.totalEngagementRules}
-            subtitle={`アクティブ: ${stats.activeEngagementRules}`}
-            icon={<Zap size={24} />}
-            color="yellow"
-            link="/engagement"
-          />
-          <StatsCard
-            title="ループ"
-            value={stats.totalLoops}
-            subtitle={`アクティブ: ${stats.activeLoops}`}
-            icon={<Repeat size={24} />}
-            color="green"
-            link="/loops"
-          />
-          <StatsCard
-            title="テンプレート"
-            value={stats.totalTemplates}
-            icon={<FileText size={24} />}
-            color="purple"
-            link="/templates"
-          />
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-white mb-4">コンテンツ & 自動化</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatsCard
+              title="投稿"
+              value={stats.totalPosts}
+              subtitle={`予約: ${stats.scheduledPosts}`}
+              icon={<MessageCircle size={24} />}
+              color="blue"
+              link="/posts"
+            />
+            <StatsCard
+              title="エンゲージメントルール"
+              value={stats.totalEngagementRules}
+              subtitle={`アクティブ: ${stats.activeEngagementRules}`}
+              icon={<Zap size={24} />}
+              color="yellow"
+              link="/engagement"
+            />
+            <StatsCard
+              title="ループ"
+              value={stats.totalLoops}
+              subtitle={`アクティブ: ${stats.activeLoops}`}
+              icon={<Repeat size={24} />}
+              color="green"
+              link="/loops"
+            />
+            <StatsCard
+              title="テンプレート"
+              value={stats.totalTemplates}
+              icon={<FileText size={24} />}
+              color="purple"
+              link="/templates"
+            />
+          </div>
         </div>
-      </div>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">インフラ & パフォーマンス</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            title="プロキシ"
-            value={stats.totalProxies}
-            subtitle={`正常: ${stats.workingProxies}`}
-            icon={<Globe size={24} />}
-            color="blue"
-            link="/proxies"
-          />
-          <StatsCard
-            title="総エンゲージメント"
-            value={stats.totalEngagements.toLocaleString()}
-            icon={<TrendingUp size={24} />}
-            color="green"
-          />
-          <StatsCard
-            title="ループ投稿数"
-            value={stats.totalPostCount.toLocaleString()}
-            icon={<Repeat size={24} />}
-            color="purple"
-          />
-          <StatsCard
-            title="システム稼働率"
-            value="99.9%"
-            icon={<TrendingUp size={24} />}
-            color="green"
-          />
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-white mb-4">インフラ & パフォーマンス</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatsCard
+              title="プロキシ"
+              value={stats.totalProxies}
+              subtitle={`正常: ${stats.workingProxies}`}
+              icon={<Globe size={24} />}
+              color="blue"
+              link="/proxies"
+            />
+            <StatsCard
+              title="総エンゲージメント"
+              value={stats.totalEngagements.toLocaleString()}
+              icon={<TrendingUp size={24} />}
+              color="green"
+            />
+            <StatsCard
+              title="ループ投稿数"
+              value={stats.totalPostCount.toLocaleString()}
+              icon={<Repeat size={24} />}
+              color="purple"
+            />
+            <StatsCard
+              title="システム稼働率"
+              value="99.9%"
+              icon={<TrendingUp size={24} />}
+              color="green"
+            />
+          </div>
         </div>
-      </div>
 
-      <QuickActions />
+        <QuickActions />
+      </div>
     </div>
   );
 }

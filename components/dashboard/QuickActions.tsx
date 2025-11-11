@@ -50,36 +50,36 @@ export default function QuickActions() {
   ];
 
   const colorClasses = {
-    blue: 'bg-blue-600 hover:bg-blue-700',
-    green: 'bg-green-600 hover:bg-green-700',
-    purple: 'bg-purple-600 hover:bg-purple-700',
-    orange: 'bg-orange-600 hover:bg-orange-700',
-    yellow: 'bg-yellow-600 hover:bg-yellow-700',
+    blue: 'bg-blue-500/20 text-blue-400',
+    green: 'bg-green-500/20 text-green-400',
+    purple: 'bg-purple-500/20 text-purple-400',
+    orange: 'bg-orange-500/20 text-orange-400',
+    yellow: 'bg-yellow-500/20 text-yellow-400',
   };
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">クイックアクション</h2>
+      <h2 className="text-xl font-semibold text-white mb-4">クイックアクション</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {actions.map((action, index) => (
           <Link
             key={index}
             href={action.link}
-            className="bg-white rounded-lg shadow hover:shadow-lg transition-all p-6 group"
+            className="bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600 transition-all p-6 group"
           >
             <div className="flex items-start gap-4">
-              <div className={`p-3 rounded-lg text-white ${colorClasses[action.color as keyof typeof colorClasses]} transition`}>
+              <div className={`p-3 rounded-lg ${colorClasses[action.color as keyof typeof colorClasses]} transition`}>
                 {action.icon}
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-blue-600 transition">
+                <h3 className="font-semibold text-white mb-1 group-hover:text-blue-400 transition">
                   {action.title}
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-400">
                   {action.description}
                 </p>
               </div>
-              <Plus size={20} className="text-gray-400 group-hover:text-blue-600 transition" />
+              <Plus size={20} className="text-gray-500 group-hover:text-blue-400 transition" />
             </div>
           </Link>
         ))}
