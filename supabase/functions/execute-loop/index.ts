@@ -183,29 +183,37 @@ serve(async (req) => {
 
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    const now = new Date().toISOString();
+    const now = new Date();
 
-    // Get loops that are ready to execute
-    console.log('Querying loops with timestamp:', now);
+    // Get all active loops (filter in JavaScript to avoid PostgREST issues)
     const { data: allLoops, error: loopsErr } = await sb
       .from('loops')
       .select('*')
       .eq('is_active', true)
-      .or(`next_execution_at.is.null,next_execution_at.lte.${now}`)
-      .order('next_execution_at', { ascending: true, nullsFirst: true })
-      .limit(50);
-
-    console.log('Query result:', { allLoops, loopsErr });
+      .limit(100);
 
     if (loopsErr) {
       throw loopsErr;
     }
 
-    // Filter out locked loops in JavaScript (PostgREST schema cache workaround)
-    const loops = (allLoops || []).filter((loop: any) => {
-      if (!loop.locked_until) return true;
-      return new Date(loop.locked_until) < new Date();
-    }).slice(0, 20);
+    // Filter by execution time and lock status in JavaScript
+    const loops = (allLoops || [])
+      .filter((loop: any) => {
+        // Check if ready to execute
+        if (!loop.next_execution_at) return true;
+        const nextExec = new Date(loop.next_execution_at);
+        if (nextExec > now) return false;
+
+        // Check if locked
+        if (!loop.locked_until) return true;
+        return new Date(loop.locked_until) < now;
+      })
+      .sort((a: any, b: any) => {
+        if (!a.next_execution_at) return -1;
+        if (!b.next_execution_at) return 1;
+        return new Date(a.next_execution_at).getTime() - new Date(b.next_execution_at).getTime();
+      })
+      .slice(0, 20);
 
     if (!loops || loops.length === 0) {
       return new Response(
