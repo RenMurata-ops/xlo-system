@@ -173,6 +173,9 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // Generate trace_id for debugging
+  const traceId = crypto.randomUUID();
+
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -182,12 +185,13 @@ serve(async (req) => {
 
     const now = new Date().toISOString();
 
-    // Get loops that are ready to execute
+    // Get loops that are ready to execute AND not locked
     const { data: loops, error: loopsErr } = await sb
       .from('loops')
       .select('*')
       .eq('is_active', true)
       .or(`next_execution_at.is.null,next_execution_at.lte.${now}`)
+      .or(`locked_until.is.null,locked_until.lt.${now}`)
       .order('next_execution_at', { ascending: true, nullsFirst: true })
       .limit(20);
 
@@ -211,6 +215,17 @@ serve(async (req) => {
       const usedAccountIds: string[] = [];
 
       try {
+        // Acquire lock
+        const { data: lockAcquired } = await sb.rpc('acquire_loop_lock', {
+          p_loop_id: loop.id,
+          p_lock_duration_minutes: 5,
+        });
+
+        if (!lockAcquired) {
+          console.log(`Loop ${loop.id} is locked by another process, skipping`);
+          continue;
+        }
+
         // Pick executor accounts
         const executorAccountIds = await pickAccounts(sb, loop);
 
@@ -248,7 +263,7 @@ serve(async (req) => {
           }
         }
 
-        // Log execution
+        // Log execution with trace_id
         await sb.from('loop_executions').insert({
           user_id: loop.user_id,
           loop_id: loop.id,
@@ -257,7 +272,8 @@ serve(async (req) => {
           sent_replies_count: 0,
           used_account_ids: usedAccountIds,
           status: postsCreated > 0 ? 'success' : 'failed',
-          exec_data: { posts_created: postsCreated, accounts_used: usedAccountIds.length },
+          exec_data: { posts_created: postsCreated, accounts_used: usedAccountIds.length, trace_id: traceId },
+          trace_id: traceId,
           executed_at: new Date().toISOString(),
         });
 
@@ -272,6 +288,9 @@ serve(async (req) => {
           })
           .eq('id', loop.id);
 
+        // Release lock
+        await sb.rpc('release_loop_lock', { p_loop_id: loop.id });
+
         results.push({
           loop_id: loop.id,
           ok: true,
@@ -280,7 +299,7 @@ serve(async (req) => {
       } catch (error) {
         console.error(`Error executing loop ${loop.id}:`, error);
 
-        // Log failed execution
+        // Log failed execution with trace_id
         await sb.from('loop_executions').insert({
           user_id: loop.user_id,
           loop_id: loop.id,
@@ -290,7 +309,8 @@ serve(async (req) => {
           used_account_ids: usedAccountIds,
           status: 'failed',
           error_message: error.message,
-          exec_data: { error: error.message },
+          exec_data: { error: error.message, trace_id: traceId },
+          trace_id: traceId,
           executed_at: new Date().toISOString(),
         });
 
@@ -303,6 +323,13 @@ serve(async (req) => {
             last_execution_at: new Date().toISOString(),
           })
           .eq('id', loop.id);
+
+        // Release lock in finally-like manner
+        try {
+          await sb.rpc('release_loop_lock', { p_loop_id: loop.id });
+        } catch (unlockError) {
+          console.error(`Failed to release lock for loop ${loop.id}:`, unlockError);
+        }
 
         results.push({
           loop_id: loop.id,
@@ -318,6 +345,7 @@ serve(async (req) => {
         ok: true,
         count: results.length,
         results,
+        trace_id: traceId,
       }),
       {
         headers: { ...corsHeaders, 'content-type': 'application/json' },
@@ -329,6 +357,7 @@ serve(async (req) => {
       JSON.stringify({
         ok: false,
         error: error.message || 'Internal server error',
+        trace_id: traceId,
       }),
       {
         headers: { ...corsHeaders, 'content-type': 'application/json' },

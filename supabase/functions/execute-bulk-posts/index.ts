@@ -40,6 +40,9 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // Generate trace_id for debugging
+  const traceId = crypto.randomUUID();
+
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -78,6 +81,7 @@ serve(async (req) => {
           failed: 0,
           samples: [],
           message: 'No pending posts in queue',
+          trace_id: traceId,
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -221,6 +225,13 @@ serve(async (req) => {
 
         const tweetId = proxyResult.data?.data?.id;
 
+        // Calculate text_hash for duplicate detection
+        const encoder = new TextEncoder();
+        const data = encoder.encode(content);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const textHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
         // Create post record
         const { data: post, error: postError } = await supabase
           .from('posts')
@@ -228,6 +239,7 @@ serve(async (req) => {
             user_id: user_id,
             account_id: queueItem.target_account_id,
             content: content,
+            text_hash: textHash,
             tweet_id: tweetId,
             posted_at: new Date().toISOString(),
             status: 'posted',
@@ -238,6 +250,11 @@ serve(async (req) => {
 
         if (postError) {
           console.error('Post insert error:', postError);
+
+          // Check if it's a duplicate post error
+          if (postError.message?.includes('Duplicate post within 24h')) {
+            throw new Error(`Duplicate post detected: ${postError.message}`);
+          }
         }
 
         // Update queue item
@@ -299,6 +316,7 @@ serve(async (req) => {
         failed,
         samples: processedPosts.slice(0, 5), // Return first 5 samples
         dryRun,
+        trace_id: traceId,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -311,6 +329,7 @@ serve(async (req) => {
       JSON.stringify({
         success: false,
         error: error.message || 'Internal server error',
+        trace_id: traceId,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

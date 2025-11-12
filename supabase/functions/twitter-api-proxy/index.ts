@@ -163,6 +163,11 @@ serve(async (req) => {
     const rateLimitRemaining = twitterResponse.headers.get('x-rate-limit-remaining');
     const rateLimitReset = twitterResponse.headers.get('x-rate-limit-reset');
 
+    // Calculate rate limit warning
+    const limit = parseInt(rateLimitLimit || '0');
+    const remaining = parseInt(rateLimitRemaining || '0');
+    const isLowRate = limit > 0 && (remaining / limit) < 0.2;
+
     // Record rate limit info
     if (rateLimitLimit && rateLimitRemaining && rateLimitReset) {
       const resetDate = new Date(parseInt(rateLimitReset) * 1000);
@@ -173,10 +178,10 @@ serve(async (req) => {
           user_id: user.id,
           endpoint,
           token_type: 'oauth2',
-          limit_total: parseInt(rateLimitLimit),
-          remaining: parseInt(rateLimitRemaining),
+          limit_total: limit,
+          remaining: remaining,
           reset_at: resetDate.toISOString(),
-          used_requests: parseInt(rateLimitLimit) - parseInt(rateLimitRemaining),
+          used_requests: limit - remaining,
           window_started_at: new Date().toISOString(),
         }, {
           onConflict: 'user_id,endpoint,token_type,window_started_at',
@@ -192,6 +197,8 @@ serve(async (req) => {
           limit: rateLimitLimit,
           remaining: rateLimitRemaining,
           reset: rateLimitReset,
+          warning: isLowRate ? 'rate_limit_low' : null,
+          remaining_percent: limit > 0 ? Math.round((remaining / limit) * 100) : 100,
         },
       }),
       {
