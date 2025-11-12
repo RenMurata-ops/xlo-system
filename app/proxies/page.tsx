@@ -1,26 +1,36 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, RefreshCw, Globe, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import ProxyCard from '@/components/proxies/ProxyCard';
-import ProxyForm from '@/components/proxies/ProxyForm';
+import {
+  Globe,
+  Plus,
+  Edit,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Filter,
+  RefreshCw,
+  Activity,
+  AlertCircle,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface Proxy {
   id: string;
-  proxy_name: string;
-  proxy_type: 'http' | 'https' | 'socks5';
-  host: string;
-  port: number;
-  username: string | null;
-  password: string | null;
-  country: string | null;
+  proxy_type: 'nordvpn' | 'http' | 'https' | 'socks5';
+  proxy_url: string;
+  username?: string | null;
+  password?: string | null;
+  country?: string | null;
+  city?: string | null;
   is_active: boolean;
-  last_tested_at: string | null;
-  test_status: 'success' | 'failed' | 'untested';
-  response_time_ms: number | null;
-  assigned_accounts_count: number;
-  notes: string | null;
+  response_time_ms?: number | null;
+  last_checked_at?: string | null;
+  error_message?: string | null;
+  tags?: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -28,197 +38,362 @@ interface Proxy {
 export default function ProxiesPage() {
   const [proxies, setProxies] = useState<Proxy[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [editingProxy, setEditingProxy] = useState<Proxy | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
     loadProxies();
-  }, []);
+  }, [filter, typeFilter]);
 
   async function loadProxies() {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+
+      let query = supabase
         .from('proxies')
         .select('*')
         .order('created_at', { ascending: false });
 
+      if (filter === 'active') {
+        query = query.eq('is_active', true);
+      } else if (filter === 'inactive') {
+        query = query.eq('is_active', false);
+      }
+
+      if (typeFilter !== 'all') {
+        query = query.eq('proxy_type', typeFilter);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
+
       setProxies(data || []);
     } catch (error) {
-      console.error('Error loading proxies:', error);
+      console.error('Failed to load proxies:', error);
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('このプロキシを削除してもよろしいですか？')) return;
+  async function deleteProxy(id: string) {
+    if (!confirm('このプロキシを削除してもよろしいですか？')) {
+      return;
+    }
 
+    try {
+      const { error } = await supabase.from('proxies').delete().eq('id', id);
+
+      if (error) throw error;
+
+      setProxies((prev) => prev.filter((p) => p.id !== id));
+    } catch (error) {
+      console.error('Failed to delete proxy:', error);
+      alert('削除に失敗しました。アカウントに割り当てられている可能性があります。');
+    }
+  }
+
+  async function toggleActive(id: string, currentStatus: boolean) {
     try {
       const { error } = await supabase
         .from('proxies')
-        .delete()
+        .update({ is_active: !currentStatus, updated_at: new Date().toISOString() })
         .eq('id', id);
 
       if (error) throw error;
 
-      setProxies(proxies.filter(proxy => proxy.id !== id));
+      setProxies((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, is_active: !currentStatus } : p))
+      );
     } catch (error) {
-      console.error('Error deleting proxy:', error);
-      alert('削除に失敗しました');
+      console.error('Failed to toggle proxy status:', error);
     }
   }
 
-  async function handleToggleActive(id: string, currentStatus: boolean) {
-    try {
-      const { error } = await supabase
-        .from('proxies')
-        .update({ is_active: !currentStatus })
-        .eq('id', id);
+  function getProxyTypeBadge(type: string) {
+    const colors = {
+      nordvpn: 'bg-blue-500',
+      http: 'bg-green-500',
+      https: 'bg-purple-500',
+      socks5: 'bg-orange-500',
+    };
 
-      if (error) throw error;
-
-      setProxies(proxies.map(proxy =>
-        proxy.id === id ? { ...proxy, is_active: !currentStatus } : proxy
-      ));
-    } catch (error) {
-      console.error('Error toggling status:', error);
-      alert('ステータス変更に失敗しました');
-    }
-  }
-
-  async function handleTest(id: string) {
-    try {
-      // ここで実際のプロキシテストを実行
-      // 現時点ではステータス更新のみ
-      const { error } = await supabase
-        .from('proxies')
-        .update({
-          last_tested_at: new Date().toISOString(),
-          test_status: 'success',
-          response_time_ms: Math.floor(Math.random() * 1000) + 100
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      loadProxies();
-      alert('テスト成功');
-    } catch (error) {
-      console.error('Error testing proxy:', error);
-      alert('テストに失敗しました');
-    }
-  }
-
-  function handleEdit(proxy: Proxy) {
-    setEditingProxy(proxy);
-    setShowForm(true);
-  }
-
-  function handleFormClose() {
-    setShowForm(false);
-    setEditingProxy(null);
-    loadProxies();
-  }
-
-  const activeProxies = proxies.filter(p => p.is_active).length;
-  const workingProxies = proxies.filter(p => p.test_status === 'success').length;
-  const totalAssignments = proxies.reduce((sum, p) => sum + p.assigned_accounts_count, 0);
-  const avgResponseTime = proxies.length > 0
-    ? (proxies.reduce((sum, p) => sum + (p.response_time_ms || 0), 0) / proxies.length).toFixed(0)
-    : '0';
-
-  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <span
+        className={cn(
+          'px-2 py-0.5 rounded text-xs text-white font-medium',
+          colors[type as keyof typeof colors] || 'bg-gray-500'
+        )}
+      >
+        {type.toUpperCase()}
+      </span>
     );
   }
 
+  function formatLastChecked(dateString?: string | null) {
+    if (!dateString) return 'Never';
+
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  }
+
+  const activeCount = proxies.filter((p) => p.is_active).length;
+  const healthyCount = proxies.filter(
+    (p) => p.is_active && !p.error_message
+  ).length;
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">プロキシ管理</h1>
-          <p className="text-gray-600 mt-2">
-            プロキシサーバーを管理します
-          </p>
+    <div className="container mx-auto p-6 max-w-7xl">
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Globe className="h-8 w-8" />
+              プロキシ管理
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {proxies.length} プロキシ | {activeCount} アクティブ | {healthyCount}{' '}
+              正常
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => loadProxies()}
+              variant="outline"
+              size="sm"
+              disabled={loading}
+            >
+              <RefreshCw
+                className={cn('h-4 w-4 mr-2', loading && 'animate-spin')}
+              />
+              更新
+            </Button>
+            <Button onClick={() => setShowForm(true)} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              プロキシ追加
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={loadProxies}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-          >
-            <RefreshCw size={20} />
-            更新
-          </button>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            <Plus size={20} />
-            新規登録
-          </button>
+
+        {/* Filters */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Button
+              variant={filter === 'all' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('all')}
+            >
+              すべて
+            </Button>
+            <Button
+              variant={filter === 'active' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('active')}
+            >
+              アクティブ
+            </Button>
+            <Button
+              variant={filter === 'inactive' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setFilter('inactive')}
+            >
+              非アクティブ
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant={typeFilter === 'all' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTypeFilter('all')}
+            >
+              すべてのタイプ
+            </Button>
+            <Button
+              variant={typeFilter === 'nordvpn' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTypeFilter('nordvpn')}
+            >
+              NordVPN
+            </Button>
+            <Button
+              variant={typeFilter === 'http' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTypeFilter('http')}
+            >
+              HTTP
+            </Button>
+            <Button
+              variant={typeFilter === 'https' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTypeFilter('https')}
+            >
+              HTTPS
+            </Button>
+            <Button
+              variant={typeFilter === 'socks5' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTypeFilter('socks5')}
+            >
+              SOCKS5
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">総プロキシ数</div>
-          <div className="text-3xl font-bold text-gray-900">{proxies.length}</div>
+      {/* Proxy List */}
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground">
+          プロキシを読み込み中...
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">アクティブ</div>
-          <div className="text-3xl font-bold text-green-600">{activeProxies}</div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">正常動作</div>
-          <div className="text-3xl font-bold text-blue-600">{workingProxies}</div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">割当アカウント</div>
-          <div className="text-3xl font-bold text-purple-600">{totalAssignments}</div>
-        </div>
-      </div>
-
-      {proxies.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <Globe size={64} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            プロキシが登録されていません
-          </h3>
-          <p className="text-gray-600 mb-6">
-            プロキシサーバーを登録してください
+      ) : proxies.length === 0 ? (
+        <Card className="p-12 text-center">
+          <Globe className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <h3 className="text-lg font-semibold mb-2">プロキシが見つかりません</h3>
+          <p className="text-muted-foreground mb-4">
+            最初のプロキシを追加して始めましょう
           </p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            <Plus size={20} />
-            最初のプロキシを登録
-          </button>
-        </div>
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            プロキシ追加
+          </Button>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {proxies.map(proxy => (
-            <ProxyCard
-              key={proxy.id}
-              proxy={proxy}
-              onEdit={() => handleEdit(proxy)}
-              onDelete={() => handleDelete(proxy.id)}
-              onToggleActive={() => handleToggleActive(proxy.id, proxy.is_active)}
-              onTest={() => handleTest(proxy.id)}
-            />
+        <div className="grid gap-4">
+          {proxies.map((proxy) => (
+            <Card key={proxy.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                    <Globe className="h-4 w-4" />
+                    {getProxyTypeBadge(proxy.proxy_type)}
+                    <code className="text-sm font-mono bg-secondary px-2 py-1 rounded break-all">
+                      {proxy.proxy_url}
+                    </code>
+                    {proxy.is_active ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                    {proxy.country && (
+                      <span>
+                        📍 {proxy.country}
+                        {proxy.city && `, ${proxy.city}`}
+                      </span>
+                    )}
+                    {proxy.response_time_ms && (
+                      <span className="flex items-center gap-1">
+                        <Activity className="h-3 w-3" />
+                        {proxy.response_time_ms}ms
+                      </span>
+                    )}
+                    <span>
+                      最終確認: {formatLastChecked(proxy.last_checked_at)}
+                    </span>
+                  </div>
+
+                  {proxy.error_message && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-red-500">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>{proxy.error_message}</span>
+                    </div>
+                  )}
+
+                  {proxy.tags && proxy.tags.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      {proxy.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-xs px-2 py-0.5 rounded bg-secondary"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setEditingProxy(proxy)}
+                    title="編集"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => toggleActive(proxy.id, proxy.is_active)}
+                    title={proxy.is_active ? '非アクティブ化' : 'アクティブ化'}
+                  >
+                    {proxy.is_active ? (
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteProxy(proxy.id)}
+                    title="削除"
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
       )}
 
-      {showForm && (
-        <ProxyForm
-          proxy={editingProxy}
-          onClose={handleFormClose}
+      {/* Add/Edit Form Placeholder */}
+      {(showForm || editingProxy) && (
+        <Card className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-2xl p-6 z-50 max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">
+              {editingProxy ? 'プロキシを編集' : 'プロキシを追加'}
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setShowForm(false);
+                setEditingProxy(null);
+              }}
+            >
+              <XCircle className="h-5 w-5" />
+            </Button>
+          </div>
+          <div className="text-center py-8 text-muted-foreground">
+            プロキシフォームは次のコミットで実装されます
+          </div>
+        </Card>
+      )}
+
+      {/* Backdrop */}
+      {(showForm || editingProxy) && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={() => {
+            setShowForm(false);
+            setEditingProxy(null);
+          }}
         />
       )}
     </div>
