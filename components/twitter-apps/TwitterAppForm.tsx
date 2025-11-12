@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import CallbackUrlDisplay from './CallbackUrlDisplay';
 
 interface TwitterApp {
   id: string;
-  name: string;
+  app_name: string;
   api_key: string;
   api_secret: string;
-  access_token: string;
-  access_token_secret: string;
   bearer_token: string | null;
   is_active: boolean;
 }
@@ -22,11 +21,9 @@ interface TwitterAppFormProps {
 
 export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
   const [formData, setFormData] = useState({
-    name: '',
+    app_name: '',
     api_key: '',
     api_secret: '',
-    access_token: '',
-    access_token_secret: '',
     bearer_token: '',
     is_active: true,
   });
@@ -37,11 +34,9 @@ export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
   useEffect(() => {
     if (app) {
       setFormData({
-        name: app.name,
+        app_name: app.app_name,
         api_key: app.api_key,
         api_secret: app.api_secret,
-        access_token: app.access_token,
-        access_token_secret: app.access_token_secret,
         bearer_token: app.bearer_token || '',
         is_active: app.is_active,
       });
@@ -58,8 +53,11 @@ export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
       if (!user) throw new Error('ログインが必要です');
 
       const payload = {
-        ...formData,
+        app_name: formData.app_name,
+        api_key: formData.api_key,
+        api_secret: formData.api_secret,
         bearer_token: formData.bearer_token || null,
+        is_active: formData.is_active,
         user_id: user.id,
       };
 
@@ -87,156 +85,131 @@ export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {app ? 'Twitter App編集' : '新規Twitter App登録'}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-gray-900 rounded-lg shadow-xl max-w-3xl w-full my-8">
+        <div className="flex items-center justify-between p-6 border-b border-gray-800">
+          <h2 className="text-2xl font-bold text-white">
+            {app ? 'Twitter App編集' : '新規Twitter App連携'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 transition"
+            className="p-2 text-gray-400 hover:text-gray-300 transition"
           >
             <X size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-              {error}
+        <div className="p-6 space-y-6">
+          {!app && <CallbackUrlDisplay />}
+
+          {!app && (
+            <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4 flex gap-3">
+              <AlertCircle size={20} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-yellow-200 font-semibold mb-1">
+                  重要：Twitter Developer Portalでアプリを作成してから、以下のフォームに入力してください
+                </p>
+                <p className="text-xs text-yellow-300">
+                  上記のCallback URLを使用してTwitterアプリを作成後、API KeyとAPI Secretをここに入力します
+                </p>
+              </div>
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              アプリ名 *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="例: メインアカウント用"
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="p-4 bg-red-900/20 border border-red-700 rounded-lg text-red-400">
+                {error}
+              </div>
+            )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              API Key *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.api_key}
-              onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-              placeholder="Twitter Developer Portalから取得"
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                App名 *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.app_name}
+                onChange={(e) => setFormData({ ...formData, app_name: e.target.value })}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="例: My Twitter Bot"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              API Secret *
-            </label>
-            <input
-              type="password"
-              required
-              value={formData.api_secret}
-              onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-              placeholder="••••••••••••••••"
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                API Key (Consumer Key) *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.api_key}
+                onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="xxxxxxxxxxxxxxxxxxxx"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Access Token *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.access_token}
-              onChange={(e) => setFormData({ ...formData, access_token: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-              placeholder="Twitter Developer Portalから取得"
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                API Secret (Consumer Secret) *
+              </label>
+              <input
+                type="password"
+                required
+                value={formData.api_secret}
+                onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="xxxxxxxxxxxxxxxxxxxx"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Access Token Secret *
-            </label>
-            <input
-              type="password"
-              required
-              value={formData.access_token_secret}
-              onChange={(e) => setFormData({ ...formData, access_token_secret: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-              placeholder="••••••••••••••••"
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Bearer Token（オプション）
+              </label>
+              <input
+                type="text"
+                value={formData.bearer_token}
+                onChange={(e) => setFormData({ ...formData, bearer_token: e.target.value })}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="xxxxxxxxxxxxxxxxxxxx"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Bearer Token (オプション)
-            </label>
-            <input
-              type="password"
-              value={formData.bearer_token}
-              onChange={(e) => setFormData({ ...formData, bearer_token: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-              placeholder="必要な場合のみ入力"
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              Read-only操作にのみ使用する場合は不要です
-            </p>
-          </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="is_active"
+                checked={formData.is_active}
+                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                className="w-4 h-4 text-blue-600 bg-gray-800 border-gray-700 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="is_active" className="text-sm font-medium text-gray-300">
+                このアプリを有効化する
+              </label>
+            </div>
 
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="is_active"
-              checked={formData.is_active}
-              onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-              このアプリを有効化する
-            </label>
-          </div>
-
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h4 className="text-sm font-semibold text-blue-900 mb-2">
-              📝 認証情報の取得方法
-            </h4>
-            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-              <li>Twitter Developer Portal (developer.twitter.com) にアクセス</li>
-              <li>プロジェクト & アプリを作成</li>
-              <li>Keys and tokens タブから各種認証情報を取得</li>
-              <li>上記フォームに貼り付けて保存</li>
-            </ol>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition disabled:opacity-50"
-            >
-              キャンセル
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-            >
-              {loading ? '保存中...' : app ? '更新' : '登録'}
-            </button>
-          </div>
-        </form>
+            <div className="flex items-center justify-end gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={loading}
+                className="px-6 py-2 text-gray-300 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {loading ? '保存中...' : app ? '更新' : '登録'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
