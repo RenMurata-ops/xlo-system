@@ -37,6 +37,8 @@ export default function LoopsPage() {
   const [editingLoop, setEditingLoop] = useState<Loop | null>(null);
   const [showLogs, setShowLogs] = useState(false);
   const [selectedLoopId, setSelectedLoopId] = useState<string | null>(null);
+  const [executing, setExecuting] = useState(false);
+  const [executeResult, setExecuteResult] = useState<any>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -100,6 +102,49 @@ export default function LoopsPage() {
     setShowForm(true);
   }
 
+  async function handleExecuteNow() {
+    try {
+      setExecuting(true);
+      setExecuteResult(null);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('ログインが必要です');
+        return;
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/execute-loop`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('ループ実行に失敗しました');
+      }
+
+      const result = await response.json();
+      setExecuteResult(result);
+
+      if (result.ok && result.count > 0) {
+        loadLoops(); // Reload loops to update stats
+      }
+
+      // Auto-clear result after 10 seconds
+      setTimeout(() => setExecuteResult(null), 10000);
+    } catch (error) {
+      console.error('Execute loop error:', error);
+      alert('ループ実行に失敗しました');
+    } finally {
+      setExecuting(false);
+    }
+  }
+
   function handleFormClose() {
     setShowForm(false);
     setEditingLoop(null);
@@ -125,6 +170,28 @@ export default function LoopsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {executeResult && (
+        <div className={`mb-6 p-4 rounded-lg border ${
+          executeResult.ok
+            ? 'bg-green-900/20 border-green-700 text-green-400'
+            : 'bg-red-900/20 border-red-700 text-red-400'
+        }`}>
+          <p className="font-semibold mb-2">ループ実行結果</p>
+          <p className="text-sm">
+            実行数: {executeResult.count || 0}
+          </p>
+          {executeResult.results && executeResult.results.length > 0 && (
+            <div className="mt-2 text-xs">
+              {executeResult.results.slice(0, 3).map((result: any, idx: number) => (
+                <p key={idx} className="ml-2">
+                  {result.ok ? '✓' : '✗'} ループID: {result.loop_id.slice(0, 8)}... ({result.posts_created}件投稿)
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">ループ管理</h1>
@@ -133,6 +200,23 @@ export default function LoopsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleExecuteNow}
+            disabled={executing}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+          >
+            {executing ? (
+              <>
+                <RefreshCw size={20} className="animate-spin" />
+                実行中...
+              </>
+            ) : (
+              <>
+                <PlayCircle size={20} />
+                今すぐ実行
+              </>
+            )}
+          </button>
           <button
             onClick={loadLoops}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"

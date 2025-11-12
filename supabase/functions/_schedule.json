@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "functions": [
+    {
+      "name": "schedule-loop-execution",
+      "schedule": "*/10 * * * *",
+      "description": "Execute loops every 10 minutes"
+    }
+  ]
+}
