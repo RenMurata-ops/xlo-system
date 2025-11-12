@@ -186,6 +186,7 @@ serve(async (req) => {
     const now = new Date().toISOString();
 
     // Get loops that are ready to execute
+    console.log('Querying loops with timestamp:', now);
     const { data: allLoops, error: loopsErr } = await sb
       .from('loops')
       .select('*')
@@ -193,6 +194,8 @@ serve(async (req) => {
       .or(`next_execution_at.is.null,next_execution_at.lte.${now}`)
       .order('next_execution_at', { ascending: true, nullsFirst: true })
       .limit(50);
+
+    console.log('Query result:', { allLoops, loopsErr });
 
     if (loopsErr) {
       throw loopsErr;
