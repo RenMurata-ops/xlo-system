@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
+  Bell,
   Key,
   Users,
   UserPlus,
@@ -24,6 +25,11 @@ export default function Sidebar() {
       title: 'ダッシュボード',
       href: '/dashboard',
       icon: <LayoutDashboard size={20} />,
+    },
+    {
+      title: '通知',
+      href: '/notifications',
+      icon: <Bell size={20} />,
     },
     {
       title: 'アカウント管理',

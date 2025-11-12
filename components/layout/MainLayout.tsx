@@ -2,6 +2,7 @@
 
 import Sidebar from './Sidebar';
 import MobileMenu from './MobileMenu';
+import Header from './Header';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -18,8 +19,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
       {/* Main Content */}
       <div className="lg:pl-64">
-        {/* Mobile Header Spacer */}
-        <div className="lg:hidden h-16" />
+        {/* Header with Notifications */}
+        <Header />
 
         {/* Content Area */}
         <main className="min-h-screen">
