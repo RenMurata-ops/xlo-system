@@ -26,6 +26,9 @@ export default function PostsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [bulkExecuting, setBulkExecuting] = useState(false);
+  const [bulkResult, setBulkResult] = useState<any>(null);
+  const [dryRun, setDryRun] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -95,6 +98,60 @@ export default function PostsPage() {
     loadPosts();
   }
 
+  async function handleBulkExecute(batchSize: number = 10) {
+    try {
+      setBulkExecuting(true);
+      setBulkResult(null);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('ログインが必要です');
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('ユーザー情報の取得に失敗しました');
+        return;
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/execute-bulk-posts`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            user_id: user.id,
+            batch_size: batchSize,
+            dryRun,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('一括投稿の実行に失敗しました');
+      }
+
+      const result = await response.json();
+      setBulkResult(result);
+
+      if (!dryRun && result.succeeded > 0) {
+        loadPosts(); // Reload posts after successful execution
+      }
+
+      // Auto-clear result after 10 seconds
+      setTimeout(() => setBulkResult(null), 10000);
+    } catch (error) {
+      console.error('Bulk execution error:', error);
+      alert('一括投稿の実行に失敗しました');
+    } finally {
+      setBulkExecuting(false);
+    }
+  }
+
   const statuses = [
     { value: 'all', label: 'すべて' },
     { value: 'draft', label: '下書き' },
@@ -122,6 +179,31 @@ export default function PostsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {bulkResult && (
+        <div className={`mb-6 p-4 rounded-lg border ${
+          bulkResult.success
+            ? 'bg-green-900/20 border-green-700 text-green-400'
+            : 'bg-red-900/20 border-red-700 text-red-400'
+        }`}>
+          <p className="font-semibold mb-2">
+            {bulkResult.dryRun ? 'プレビュー結果' : '一括投稿実行結果'}
+          </p>
+          <p className="text-sm">
+            処理数: {bulkResult.processed} | 成功: {bulkResult.succeeded} | 失敗: {bulkResult.failed}
+          </p>
+          {bulkResult.samples && bulkResult.samples.length > 0 && (
+            <div className="mt-2 text-xs">
+              <p className="font-semibold">サンプル:</p>
+              {bulkResult.samples.slice(0, 3).map((sample: any, idx: number) => (
+                <p key={idx} className="ml-2 truncate">
+                  {sample.status === 'success' ? '✓' : '✗'} {sample.text}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">投稿管理</h1>
@@ -130,6 +212,35 @@ export default function PostsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg">
+            <input
+              type="checkbox"
+              id="dryRun"
+              checked={dryRun}
+              onChange={(e) => setDryRun(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <label htmlFor="dryRun" className="text-sm text-gray-700">
+              プレビューのみ
+            </label>
+          </div>
+          <button
+            onClick={() => handleBulkExecute(10)}
+            disabled={bulkExecuting}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+          >
+            {bulkExecuting ? (
+              <>
+                <RefreshCw size={20} className="animate-spin" />
+                実行中...
+              </>
+            ) : (
+              <>
+                <FileText size={20} />
+                一括投稿実行
+              </>
+            )}
+          </button>
           <button
             onClick={loadPosts}
             className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
