@@ -8,12 +8,12 @@ import TwitterAppCard from '@/components/twitter-apps/TwitterAppCard';
 
 interface TwitterApp {
   id: string;
-  name: string;
+  app_name: string;
   api_key: string;
   api_secret: string;
-  access_token: string;
-  access_token_secret: string;
   bearer_token: string | null;
+  client_id: string | null;
+  client_secret: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

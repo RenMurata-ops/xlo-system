@@ -11,6 +11,8 @@ interface TwitterApp {
   api_key: string;
   api_secret: string;
   bearer_token: string | null;
+  client_id: string | null;
+  client_secret: string | null;
   is_active: boolean;
 }
 
@@ -25,6 +27,8 @@ export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
     api_key: '',
     api_secret: '',
     bearer_token: '',
+    client_id: '',
+    client_secret: '',
     is_active: true,
   });
   const [loading, setLoading] = useState(false);
@@ -38,6 +42,8 @@ export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
         api_key: app.api_key,
         api_secret: app.api_secret,
         bearer_token: app.bearer_token || '',
+        client_id: app.client_id || '',
+        client_secret: app.client_secret || '',
         is_active: app.is_active,
       });
     }

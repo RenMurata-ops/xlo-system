@@ -5,12 +5,12 @@ import { Edit2, Trash2, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 
 interface TwitterApp {
   id: string;
-  name: string;
+  app_name: string;
   api_key: string;
   api_secret: string;
-  access_token: string;
-  access_token_secret: string;
   bearer_token: string | null;
+  client_id: string | null;
+  client_secret: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -42,7 +42,7 @@ export default function TwitterAppCard({
     }`}>
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-start justify-between mb-2">
-          <h3 className="text-lg font-semibold text-gray-900">{app.name}</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{app.app_name}</h3>
           {app.is_active ? (
             <CheckCircle size={20} className="text-green-500" />
           ) : (
@@ -73,23 +73,27 @@ export default function TwitterAppCard({
             {showSecrets ? app.api_secret : maskSecret(app.api_secret)}
           </div>
         </div>
-        <div>
-          <div className="text-xs text-gray-500 mb-1">Access Token</div>
-          <div className="text-sm font-mono text-gray-900 truncate">
-            {showSecrets ? app.access_token : maskSecret(app.access_token)}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-gray-500 mb-1">Access Token Secret</div>
-          <div className="text-sm font-mono text-gray-900 truncate">
-            {showSecrets ? app.access_token_secret : maskSecret(app.access_token_secret)}
-          </div>
-        </div>
         {app.bearer_token && (
           <div>
             <div className="text-xs text-gray-500 mb-1">Bearer Token</div>
             <div className="text-sm font-mono text-gray-900 truncate">
               {showSecrets ? app.bearer_token : maskSecret(app.bearer_token)}
+            </div>
+          </div>
+        )}
+        {app.client_id && (
+          <div>
+            <div className="text-xs text-gray-500 mb-1">Client ID</div>
+            <div className="text-sm font-mono text-gray-900 truncate">
+              {showSecrets ? app.client_id : maskSecret(app.client_id)}
+            </div>
+          </div>
+        )}
+        {app.client_secret && (
+          <div>
+            <div className="text-xs text-gray-500 mb-1">Client Secret</div>
+            <div className="text-sm font-mono text-gray-900 truncate">
+              {showSecrets ? app.client_secret : maskSecret(app.client_secret)}
             </div>
           </div>
         )}
