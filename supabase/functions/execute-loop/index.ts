@@ -185,19 +185,24 @@ serve(async (req) => {
 
     const now = new Date().toISOString();
 
-    // Get loops that are ready to execute AND not locked
-    const { data: loops, error: loopsErr } = await sb
+    // Get loops that are ready to execute
+    const { data: allLoops, error: loopsErr } = await sb
       .from('loops')
       .select('*')
       .eq('is_active', true)
       .or(`next_execution_at.is.null,next_execution_at.lte.${now}`)
-      .or(`locked_until.is.null,locked_until.lt.${now}`)
       .order('next_execution_at', { ascending: true, nullsFirst: true })
-      .limit(20);
+      .limit(50);
 
     if (loopsErr) {
       throw loopsErr;
     }
+
+    // Filter out locked loops in JavaScript (PostgREST schema cache workaround)
+    const loops = (allLoops || []).filter((loop: any) => {
+      if (!loop.locked_until) return true;
+      return new Date(loop.locked_until) < new Date();
+    }).slice(0, 20);
 
     if (!loops || loops.length === 0) {
       return new Response(
