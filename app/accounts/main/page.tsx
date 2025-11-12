@@ -25,10 +25,20 @@ export default function MainAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<MainAccount | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
     loadAccounts();
+
+    // Check for OAuth success
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('connected') === '1') {
+      setSuccessMessage('Twitterアカウントの接続に成功しました！');
+      // Remove query param from URL
+      window.history.replaceState({}, '', window.location.pathname);
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
   }, []);
 
   async function loadAccounts() {
@@ -108,6 +118,12 @@ export default function MainAccountsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {successMessage && (
+        <div className="mb-6 p-4 bg-green-900/20 border border-green-700 rounded-lg text-green-400">
+          {successMessage}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">メインアカウント</h1>

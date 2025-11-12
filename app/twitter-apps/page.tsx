@@ -82,6 +82,37 @@ export default function TwitterAppsPage() {
     }
   }
 
+  async function handleConnectOAuth() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('ログインが必要です');
+        return;
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/twitter-oauth-start`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('OAuth開始に失敗しました');
+      }
+
+      const { authUrl } = await response.json();
+      window.location.href = authUrl;
+    } catch (error) {
+      console.error('OAuth error:', error);
+      alert('OAuth接続に失敗しました');
+    }
+  }
+
   function handleEdit(app: TwitterApp) {
     setEditingApp(app);
     setShowForm(true);
@@ -105,18 +136,27 @@ export default function TwitterAppsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Twitter Apps</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-3xl font-bold text-white">Twitter Apps</h1>
+          <p className="text-gray-400 mt-2">
             Twitterアプリケーションの認証情報を管理します
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-        >
-          <Plus size={20} />
-          新規登録
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleConnectOAuth}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+          >
+            <Plus size={20} />
+            OAuth2で接続
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            <Plus size={20} />
+            手動登録
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
