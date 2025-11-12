@@ -206,7 +206,7 @@ serve(async (req) => {
 
     if (!loops || loops.length === 0) {
       return new Response(
-        JSON.stringify({ ok: true, count: 0, message: 'No loops ready to execute' }),
+        JSON.stringify({ ok: true, count: 0, message: 'No loops ready to execute', trace_id: traceId }),
         {
           headers: { ...corsHeaders, 'content-type': 'application/json' },
         }
