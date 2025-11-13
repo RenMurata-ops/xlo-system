@@ -32,34 +32,54 @@ async function pickAccounts(
     const maxCount = loop.max_account_count || 5;
     const count = Math.floor(Math.random() * (maxCount - minCount + 1)) + minCount;
 
+    let candidateIds: string[] = [];
+
     // Use executor_account_ids if specified
     if (loop.executor_account_ids && loop.executor_account_ids.length > 0) {
-      const shuffled = [...loop.executor_account_ids].sort(() => Math.random() - 0.5);
-      return shuffled.slice(0, Math.min(count, shuffled.length));
+      candidateIds = [...loop.executor_account_ids];
+    } else {
+      // Otherwise, select from main_accounts
+      let query = sb
+        .from('main_accounts')
+        .select('id')
+        .eq('user_id', loop.user_id)
+        .eq('is_active', true);
+
+      // Filter by allowed_account_tags if specified
+      if (loop.allowed_account_tags && loop.allowed_account_tags.length > 0) {
+        query = query.contains('tags', loop.allowed_account_tags);
+      }
+
+      const { data, error } = await query.limit(count * 3);
+
+      if (error || !data || data.length === 0) {
+        console.error('No accounts found:', error);
+        return [];
+      }
+
+      candidateIds = data.map((acc: any) => acc.id);
     }
 
-    // Otherwise, select from main_accounts
-    let query = sb
-      .from('main_accounts')
-      .select('id')
-      .eq('user_id', loop.user_id)
-      .eq('is_active', true);
+    // Filter by health and rate limits
+    const healthyAccounts = [];
+    const shuffled = candidateIds.sort(() => Math.random() - 0.5);
 
-    // Filter by allowed_account_tags if specified
-    if (loop.allowed_account_tags && loop.allowed_account_tags.length > 0) {
-      query = query.contains('tags', loop.allowed_account_tags);
+    for (const accountId of shuffled) {
+      if (healthyAccounts.length >= count) break;
+
+      const { data: canMakeRequest } = await sb.rpc('can_account_make_request', {
+        p_account_id: accountId,
+        p_account_type: 'main',
+        p_max_daily_requests: 1000,
+      });
+
+      if (canMakeRequest) {
+        healthyAccounts.push(accountId);
+      }
     }
 
-    const { data, error } = await query.limit(count * 2);
-
-    if (error || !data || data.length === 0) {
-      console.error('No accounts found:', error);
-      return [];
-    }
-
-    // Randomly select required count
-    const shuffled = data.sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count).map((acc: any) => acc.id);
+    console.log(`Loop: Selected ${healthyAccounts.length} healthy accounts out of ${candidateIds.length} candidates`);
+    return healthyAccounts;
   } catch (error) {
     console.error('Error picking accounts:', error);
     return [];

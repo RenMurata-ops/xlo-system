@@ -93,6 +93,11 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const requestStartTime = Date.now();
+  let accountDbId: string | null = null;
+  let accountType: string | null = null;
+  let proxyId: string | null = null;
+
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -100,14 +105,15 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: {
-        headers: { Authorization: authHeader },
-      },
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Use anon key for auth
+    const anonSupabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { data: { user }, error: userError } = await anonSupabase.auth.getUser();
     if (userError || !user) {
       throw new Error('Unauthorized');
     }
@@ -141,6 +147,36 @@ serve(async (req) => {
 
     let tokenRecord = tokens[0];
     let accessToken = tokenRecord.access_token;
+    accountDbId = tokenRecord.account_id;
+    accountType = tokenRecord.account_type;
+
+    // RATE LIMITING: Check if account can make request
+    const { data: canRequest } = await supabase.rpc('can_account_make_request', {
+      p_account_id: accountDbId,
+      p_account_type: accountType,
+      p_max_daily_requests: accountType === 'spam' ? 500 : 1000, // Lower limit for spam accounts
+    });
+
+    if (!canRequest) {
+      throw new Error('Account rate limit exceeded or health score too low');
+    }
+
+    // Get proxy info for spam accounts (for future proxy support)
+    if (accountType === 'spam') {
+      const tableName = 'spam_accounts';
+      const { data: accountInfo } = await supabase
+        .from(tableName)
+        .select('proxy_id')
+        .eq('id', accountDbId)
+        .single();
+
+      if (accountInfo?.proxy_id) {
+        proxyId = accountInfo.proxy_id;
+        // Note: Actual proxy usage would be implemented here
+        // Currently Supabase Edge Functions don't support HTTP proxies directly
+        console.log(`Proxy ${proxyId} associated with account, but direct proxy not yet supported`);
+      }
+    }
 
     // Check if token needs refresh (expires in less than 5 minutes)
     const expiresAt = new Date(tokenRecord.expires_at);
@@ -175,6 +211,7 @@ serve(async (req) => {
       body: body ? JSON.stringify(body) : undefined,
     });
 
+    const requestDuration = Date.now() - requestStartTime;
     const responseData = await twitterResponse.json();
 
     // Extract rate limit headers
@@ -186,6 +223,7 @@ serve(async (req) => {
     const limit = parseInt(rateLimitLimit || '0');
     const remaining = parseInt(rateLimitRemaining || '0');
     const isLowRate = limit > 0 && (remaining / limit) < 0.2;
+    const isRateLimited = twitterResponse.status === 429;
 
     // Record rate limit info
     if (rateLimitLimit && rateLimitRemaining && rateLimitReset) {
@@ -207,6 +245,38 @@ serve(async (req) => {
         });
     }
 
+    // Log request to account_request_log
+    await supabase.from('account_request_log').insert({
+      user_id: user.id,
+      account_id: accountDbId,
+      account_type: accountType,
+      endpoint,
+      method: method.toUpperCase(),
+      status_code: twitterResponse.status,
+      rate_limit_remaining: remaining || null,
+      rate_limit_reset_at: rateLimitReset ? new Date(parseInt(rateLimitReset) * 1000).toISOString() : null,
+      request_duration_ms: requestDuration,
+      error_message: twitterResponse.ok ? null : responseData.detail || responseData.title || 'Request failed',
+      is_rate_limited: isRateLimited,
+      is_error: !twitterResponse.ok,
+      proxy_id: proxyId,
+      proxy_used: proxyId ? false : false, // Set to true when proxy actually used
+    });
+
+    // Record success/failure for account health
+    if (twitterResponse.ok) {
+      await supabase.rpc('record_account_success', {
+        p_account_id: accountDbId,
+        p_account_type: accountType,
+      });
+    } else {
+      await supabase.rpc('record_account_error', {
+        p_account_id: accountDbId,
+        p_account_type: accountType,
+        p_error_message: `${twitterResponse.status}: ${responseData.detail || responseData.title || 'Request failed'}`,
+      });
+    }
+
     return new Response(
       JSON.stringify({
         success: twitterResponse.ok,
@@ -219,6 +289,10 @@ serve(async (req) => {
           warning: isLowRate ? 'rate_limit_low' : null,
           remaining_percent: limit > 0 ? Math.round((remaining / limit) * 100) : 100,
         },
+        health: {
+          request_duration_ms: requestDuration,
+          is_rate_limited: isRateLimited,
+        },
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -227,6 +301,35 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Proxy error:', error);
+
+    // Log error if we have account info
+    if (accountDbId && accountType) {
+      const requestDuration = Date.now() - requestStartTime;
+
+      try {
+        await supabase.from('account_request_log').insert({
+          user_id: user.id,
+          account_id: accountDbId,
+          account_type: accountType,
+          endpoint: requestData?.endpoint || 'unknown',
+          method: requestData?.method?.toUpperCase() || 'UNKNOWN',
+          status_code: null,
+          request_duration_ms: requestDuration,
+          error_message: error.message || 'Internal error',
+          is_error: true,
+          proxy_id: proxyId,
+        });
+
+        await supabase.rpc('record_account_error', {
+          p_account_id: accountDbId,
+          p_account_type: accountType,
+          p_error_message: error.message || 'Internal error',
+        });
+      } catch (logError) {
+        console.error('Failed to log error:', logError);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: false,

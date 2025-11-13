@@ -62,17 +62,37 @@ async function executeRule(
       return result;
     }
 
-    // Get tokens for valid accounts
+    // Filter accounts by health and rate limits
+    const healthyAccounts = [];
+    for (const accountId of validAccountIds.slice(0, rule.max_accounts_per_run || 5)) {
+      const { data: canMakeRequest } = await supabase.rpc('can_account_make_request', {
+        p_account_id: accountId,
+        p_account_type: 'main', // Assuming engagement is done with main accounts
+        p_max_daily_requests: 800, // Conservative limit for engagement
+      });
+
+      if (canMakeRequest) {
+        healthyAccounts.push(accountId);
+      }
+    }
+
+    if (healthyAccounts.length === 0) {
+      result.error = 'No healthy accounts available (rate limit or health score too low)';
+      return result;
+    }
+
+    // Get tokens for healthy accounts
     const { data: tokens } = await supabase
       .from('account_tokens')
       .select('*')
-      .in('id', validAccountIds)
-      .limit(rule.max_accounts_per_run || 1);
+      .in('id', healthyAccounts);
 
     if (!tokens || tokens.length === 0) {
       result.error = 'Failed to fetch executor tokens';
       return result;
     }
+
+    console.log(`Using ${tokens.length} healthy accounts for engagement`);
 
     // Execute based on rule type
     switch (rule.rule_type) {
