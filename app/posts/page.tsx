@@ -204,10 +204,16 @@ export default function PostsPage() {
         </div>
       )}
 
+      <div className="bg-blue-900/30 border border-blue-700/50 rounded-lg p-4 mb-6">
+        <p className="text-sm text-blue-200">
+          <strong>💡 ヒント：</strong> すべての投稿は、アカウントに紐づけられたTwitter Appの認証情報を使用してX（Twitter）プラットフォーム上で実行されます。
+        </p>
+      </div>
+
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">投稿管理</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-3xl font-bold text-white">投稿管理</h1>
+          <p className="text-gray-400 mt-2">
             Twitter投稿を作成・管理します
           </p>
         </div>

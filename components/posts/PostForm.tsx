@@ -51,14 +51,42 @@ export default function PostForm({ post, onClose }: PostFormProps) {
 
   async function loadAccounts() {
     try {
-      const { data, error } = await supabase
+      // Load accounts with their token status
+      const { data: accounts, error: accountsError } = await supabase
         .from('main_accounts')
-        .select('id, account_handle, is_active')
+        .select('id, handle, name, is_active')
         .eq('is_active', true)
-        .order('account_handle');
+        .order('handle');
 
-      if (error) throw error;
-      setAccounts(data || []);
+      if (accountsError) throw accountsError;
+
+      // Load token status for each account
+      const accountsWithTokens = await Promise.all(
+        (accounts || []).map(async (account) => {
+          const { data: token } = await supabase
+            .from('account_tokens')
+            .select('expires_at, app_id, twitter_apps(app_name)')
+            .eq('account_id', account.id)
+            .eq('account_type', 'main')
+            .single();
+
+          let tokenStatus = 'missing';
+          let appName = null;
+          if (token) {
+            const expiresAt = new Date(token.expires_at);
+            tokenStatus = expiresAt > new Date() ? 'active' : 'expired';
+            appName = token.twitter_apps?.app_name || null;
+          }
+
+          return {
+            ...account,
+            tokenStatus,
+            appName,
+          };
+        })
+      );
+
+      setAccounts(accountsWithTokens.filter(acc => acc.tokenStatus === 'active'));
     } catch (error) {
       console.error('Error loading accounts:', error);
     }
@@ -164,10 +192,20 @@ export default function PostForm({ post, onClose }: PostFormProps) {
               <option value="">アカウントを選択</option>
               {accounts.map(account => (
                 <option key={account.id} value={account.id}>
-                  @{account.account_handle}
+                  @{account.handle} {account.appName ? `(${account.appName})` : ''}
                 </option>
               ))}
             </select>
+            {accounts.length === 0 && (
+              <p className="mt-2 text-sm text-orange-600">
+                ⚠️ 使用可能なアカウントがありません。アカウントページでTwitterと連携してください。
+              </p>
+            )}
+            {formData.account_id && accounts.find(a => a.id === formData.account_id) && (
+              <p className="mt-2 text-sm text-green-600">
+                ✓ このアカウントはX（Twitter）に接続されています
+              </p>
+            )}
           </div>
 
           <div>
