@@ -210,6 +210,43 @@ export default function MainAccountsPage() {
     }
   }
 
+  async function handleConnectTwitter() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('ログインが必要です');
+        return;
+      }
+
+      // Call OAuth start endpoint with account_type parameter
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/twitter-oauth-start`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            account_type: 'main', // Specify this is for main accounts
+            redirect_to: `${window.location.origin}/accounts/main?connected=1`,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'OAuth開始に失敗しました');
+      }
+
+      const { authUrl } = await response.json();
+      window.location.href = authUrl;
+    } catch (error: any) {
+      console.error('OAuth error:', error);
+      alert(`Twitterアカウント連携に失敗しました: ${error.message}`);
+    }
+  }
+
   async function validateAllTokens() {
     setImportLoading(true);
     try {
@@ -282,9 +319,13 @@ export default function MainAccountsPage() {
               <RefreshCw className={cn('h-4 w-4 mr-2', loading && 'animate-spin')} />
               更新
             </Button>
-            <Button onClick={() => setShowForm(true)} size="sm">
+            <Button onClick={handleConnectTwitter} variant="default" size="sm" className="bg-green-600 hover:bg-green-700">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Twitterアカウントを連携
+            </Button>
+            <Button onClick={() => setShowForm(true)} variant="outline" size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              新規登録
+              手動登録
             </Button>
           </div>
         </div>

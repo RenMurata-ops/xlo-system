@@ -50,12 +50,35 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
+    // Parse request body
+    let accountType = 'main';
+    let redirectTo = '/accounts/main?connected=1';
+    try {
+      const body = await req.json();
+      if (body.account_type) accountType = body.account_type;
+      if (body.redirect_to) redirectTo = body.redirect_to;
+    } catch {
+      // Use defaults if no body
+    }
+
+    // Get user's active Twitter app from database
+    const { data: twitterApp, error: appError } = await supabase
+      .from('twitter_apps')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single();
+
+    if (appError || !twitterApp) {
+      throw new Error('No active Twitter app found. Please add a Twitter app in the Twitter Apps page.');
+    }
+
     // Generate PKCE values
     const state = generateRandomString(32);
     const codeVerifier = generateRandomString(64);
     const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-    // Save session to database
+    // Save session to database with account_type and app_id
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutes expiry
 
@@ -65,6 +88,9 @@ serve(async (req) => {
         user_id: user.id,
         state,
         code_verifier: codeVerifier,
+        account_type: accountType,
+        app_id: twitterApp.id,
+        redirect_to: redirectTo,
         created_at: new Date().toISOString(),
         expires_at: expiresAt.toISOString(),
       });
@@ -74,9 +100,9 @@ serve(async (req) => {
       throw new Error('Failed to save OAuth session');
     }
 
-    // Build Twitter authorization URL
-    const twitterClientId = Deno.env.get('TWITTER_CLIENT_ID')!;
-    const twitterRedirectUri = Deno.env.get('TWITTER_REDIRECT_URI')!;
+    // Use Twitter app credentials from database
+    const twitterClientId = twitterApp.api_key; // Client ID
+    const twitterRedirectUri = twitterApp.callback_url || `${supabaseUrl}/functions/v1/twitter-oauth-callback-v2`;
     const scope = 'tweet.read tweet.write users.read offline.access';
 
     const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
