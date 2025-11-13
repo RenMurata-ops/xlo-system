@@ -12,8 +12,7 @@ interface TwitterApp {
   api_key: string;
   api_secret: string;
   bearer_token: string | null;
-  client_id: string | null;
-  client_secret: string | null;
+  callback_url: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -113,6 +112,30 @@ export default function TwitterAppsPage() {
     }
   }
 
+  async function handleTestConnection(app: TwitterApp) {
+    if (!app.bearer_token) {
+      alert('Bearer Tokenが設定されていないため、接続テストできません');
+      return;
+    }
+
+    try {
+      const response = await fetch('https://api.twitter.com/2/tweets/search/recent?query=hello&max_results=10', {
+        headers: {
+          'Authorization': `Bearer ${app.bearer_token}`,
+        },
+      });
+
+      if (response.ok) {
+        alert(`✅ 接続成功！\n「${app.app_name}」のTwitter API認証情報は正常に動作しています。`);
+      } else {
+        const errorText = await response.text();
+        alert(`❌ 接続失敗\nステータス: ${response.status}\nエラー: ${errorText}`);
+      }
+    } catch (error: any) {
+      alert(`❌ 接続エラー\n${error.message}`);
+    }
+  }
+
   function handleEdit(app: TwitterApp) {
     setEditingApp(app);
     setShowForm(true);
@@ -134,7 +157,7 @@ export default function TwitterAppsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-white">Twitter Apps</h1>
           <p className="text-gray-400 mt-2">
@@ -157,6 +180,33 @@ export default function TwitterAppsPage() {
             手動登録
           </button>
         </div>
+      </div>
+
+      <div className="bg-blue-900/30 border border-blue-700/50 rounded-lg p-6 mb-8">
+        <h3 className="text-lg font-semibold text-blue-200 mb-3">
+          🔐 Twitter App設定の流れ
+        </h3>
+        <ol className="space-y-2 text-sm text-blue-100">
+          <li className="flex gap-2">
+            <span className="font-bold">1.</span>
+            <span><a href="https://developer.twitter.com/en/portal/dashboard" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Twitter Developer Portal</a>でアプリを作成</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold">2.</span>
+            <span>「手動登録」ボタンをクリックしてAPI KeyとAPI Secretを登録（Callback URLが表示されます）</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold">3.</span>
+            <span>Twitter Developer PortalでCallback URLを設定（User authentication settingsから）</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold">4.</span>
+            <span>「OAuth2で接続」ボタンでTwitterアカウントを連携（アクティブなAppが使用されます）</span>
+          </li>
+        </ol>
+        <p className="mt-4 text-xs text-blue-300 bg-blue-950/50 p-3 rounded">
+          <strong>重要：</strong> 連携したアカウントは、このツールに登録されたTwitter Appに紐づけられ、X（旧Twitter）プラットフォーム上で実際に動作します。
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -204,6 +254,7 @@ export default function TwitterAppsPage() {
               onEdit={() => handleEdit(app)}
               onDelete={() => handleDelete(app.id)}
               onToggleActive={() => handleToggleActive(app.id, app.is_active)}
+              onTestConnection={() => handleTestConnection(app)}
             />
           ))}
         </div>

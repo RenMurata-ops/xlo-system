@@ -11,8 +11,7 @@ interface TwitterApp {
   api_key: string;
   api_secret: string;
   bearer_token: string | null;
-  client_id: string | null;
-  client_secret: string | null;
+  callback_url: string | null;
   is_active: boolean;
 }
 
@@ -22,13 +21,15 @@ interface TwitterAppFormProps {
 }
 
 export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const defaultCallbackUrl = `${supabaseUrl}/functions/v1/twitter-oauth-callback-v2`;
+
   const [formData, setFormData] = useState({
     app_name: '',
     api_key: '',
     api_secret: '',
     bearer_token: '',
-    client_id: '',
-    client_secret: '',
+    callback_url: defaultCallbackUrl,
     is_active: true,
   });
   const [loading, setLoading] = useState(false);
@@ -42,12 +43,11 @@ export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
         api_key: app.api_key,
         api_secret: app.api_secret,
         bearer_token: app.bearer_token || '',
-        client_id: app.client_id || '',
-        client_secret: app.client_secret || '',
+        callback_url: defaultCallbackUrl,
         is_active: app.is_active,
       });
     }
-  }, [app]);
+  }, [app, defaultCallbackUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +63,7 @@ export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
         api_key: formData.api_key,
         api_secret: formData.api_secret,
         bearer_token: formData.bearer_token || null,
+        callback_url: formData.callback_url,
         is_active: formData.is_active,
         user_id: user.id,
       };
