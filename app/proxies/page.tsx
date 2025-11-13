@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import ProxyForm from '@/components/proxies/ProxyForm';
 
 interface Proxy {
   id: string;
@@ -362,39 +363,24 @@ export default function ProxiesPage() {
         </div>
       )}
 
-      {/* Add/Edit Form Placeholder */}
+      {/* Add/Edit Form */}
       {(showForm || editingProxy) && (
-        <Card className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-2xl p-6 z-50 max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">
-              {editingProxy ? 'プロキシを編集' : 'プロキシを追加'}
-            </h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setShowForm(false);
-                setEditingProxy(null);
-              }}
-            >
-              <XCircle className="h-5 w-5" />
-            </Button>
-          </div>
-          <div className="text-center py-8 text-muted-foreground">
-            プロキシフォームは次のコミットで実装されます
-          </div>
-        </Card>
-      )}
-
-      {/* Backdrop */}
-      {(showForm || editingProxy) && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={() => {
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => {
             setShowForm(false);
             setEditingProxy(null);
-          }}
-        />
+          }} />
+          <div className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-2xl z-50">
+            <ProxyForm
+              proxy={editingProxy}
+              onClose={() => {
+                setShowForm(false);
+                setEditingProxy(null);
+                loadProxies();
+              }}
+            />
+          </div>
+        </>
       )}
     </div>
   );

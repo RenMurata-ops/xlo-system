@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Users, RefreshCw, Upload, CheckCircle, XCircle, AlertCircle, Search, Filter } from 'lucide-react';
+import { Plus, Users, RefreshCw, Upload, CheckCircle, XCircle, AlertCircle, Search, Filter, UserPlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import MainAccountForm from '@/components/accounts/MainAccountForm';
 
 interface MainAccount {
   id: string;
@@ -549,24 +550,18 @@ export default function MainAccountsPage() {
         </div>
       )}
 
-      {/* Form Placeholder */}
+      {/* Form */}
       {showForm && (
         <>
-          <Card className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-2xl p-6 z-50 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">アカウントを追加</h2>
-              <Button variant="ghost" size="icon" onClick={() => setShowForm(false)}>
-                <XCircle className="h-5 w-5" />
-              </Button>
-            </div>
-            <div className="text-center py-8 text-muted-foreground">
-              アカウント追加フォームは次のコミットで実装されます
-            </div>
-          </Card>
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setShowForm(false)}
-          />
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowForm(false)} />
+          <div className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-2xl z-50">
+            <MainAccountForm
+              onClose={() => {
+                setShowForm(false);
+                loadAccounts();
+              }}
+            />
+          </div>
         </>
       )}
     </div>
