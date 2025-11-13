@@ -37,9 +37,35 @@ async function refreshSingleToken(
       };
     }
 
-    // Twitter OAuth 2.0 token refresh
-    const twitterClientId = Deno.env.get('TWITTER_CLIENT_ID')!;
-    const twitterClientSecret = Deno.env.get('TWITTER_CLIENT_SECRET')!;
+    // IMPORTANT: Get Twitter App credentials from database, not environment variables
+    // This ensures multi-tenant support where each user has their own Twitter App
+    if (!token.app_id) {
+      return {
+        account_id: token.id,
+        x_username: token.x_username,
+        status: 'failed',
+        error: 'No app_id found in token',
+      };
+    }
+
+    // Get Twitter App from database
+    const { data: twitterApp, error: appError } = await supabase
+      .from('twitter_apps')
+      .select('api_key, api_secret')
+      .eq('id', token.app_id)
+      .single();
+
+    if (appError || !twitterApp) {
+      return {
+        account_id: token.id,
+        x_username: token.x_username,
+        status: 'failed',
+        error: 'Failed to fetch Twitter App credentials',
+      };
+    }
+
+    const twitterClientId = twitterApp.api_key;
+    const twitterClientSecret = twitterApp.api_secret;
 
     const tokenParams = new URLSearchParams({
       grant_type: 'refresh_token',

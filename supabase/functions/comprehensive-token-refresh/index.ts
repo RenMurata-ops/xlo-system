@@ -85,8 +85,29 @@ async function validateAndRefreshToken(
     if (token.token_type === 'oauth2' && token.refresh_token) {
       result.validation_status = 'expired';
 
-      const twitterClientId = Deno.env.get('TWITTER_CLIENT_ID')!;
-      const twitterClientSecret = Deno.env.get('TWITTER_CLIENT_SECRET')!;
+      // IMPORTANT: Get Twitter App credentials from database, not environment variables
+      // This ensures multi-tenant support where each user has their own Twitter App
+      if (!token.app_id) {
+        result.validation_status = 'invalid';
+        result.error_message = 'No app_id found in token';
+        return result;
+      }
+
+      // Get Twitter App from database
+      const { data: twitterApp, error: appError } = await supabase
+        .from('twitter_apps')
+        .select('api_key, api_secret')
+        .eq('id', token.app_id)
+        .single();
+
+      if (appError || !twitterApp) {
+        result.validation_status = 'invalid';
+        result.error_message = 'Failed to fetch Twitter App credentials';
+        return result;
+      }
+
+      const twitterClientId = twitterApp.api_key;
+      const twitterClientSecret = twitterApp.api_secret;
 
       const tokenParams = new URLSearchParams({
         grant_type: 'refresh_token',

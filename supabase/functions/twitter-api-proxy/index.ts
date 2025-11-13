@@ -16,8 +16,27 @@ async function refreshAccessToken(
   tokenRecord: any
 ): Promise<string | null> {
   try {
-    const twitterClientId = Deno.env.get('TWITTER_CLIENT_ID')!;
-    const twitterClientSecret = Deno.env.get('TWITTER_CLIENT_SECRET')!;
+    // IMPORTANT: Get Twitter App credentials from database, not environment variables
+    // This ensures multi-tenant support where each user has their own Twitter App
+    if (!tokenRecord.app_id) {
+      console.error('No app_id found in token record');
+      return null;
+    }
+
+    // Get Twitter App from database
+    const { data: twitterApp, error: appError } = await supabase
+      .from('twitter_apps')
+      .select('api_key, api_secret')
+      .eq('id', tokenRecord.app_id)
+      .single();
+
+    if (appError || !twitterApp) {
+      console.error('Failed to fetch Twitter App:', appError);
+      return null;
+    }
+
+    const twitterClientId = twitterApp.api_key;
+    const twitterClientSecret = twitterApp.api_secret;
 
     const refreshParams = new URLSearchParams({
       grant_type: 'refresh_token',
