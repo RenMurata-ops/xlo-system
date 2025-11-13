@@ -192,10 +192,16 @@ export default function LoopsPage() {
         </div>
       )}
 
+      <div className="bg-blue-900/30 border border-blue-700/50 rounded-lg p-4 mb-6">
+        <p className="text-sm text-blue-200">
+          <strong>🔄 ループシステム：</strong> すべてのループ投稿は、指定されたアカウントに紐づけられたTwitter Appの認証情報を使用してX（Twitter）プラットフォーム上で自動実行されます。
+        </p>
+      </div>
+
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">ループ管理</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-3xl font-bold text-white">ループ管理</h1>
+          <p className="text-gray-400 mt-2">
             自動投稿ループシステムを管理します
           </p>
         </div>

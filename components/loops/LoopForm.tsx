@@ -153,6 +153,12 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
             </div>
           )}
 
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>📌 重要：</strong> ループで指定したアカウントは、Twitter Appsページで連携されたOAuth認証を使用してX（Twitter）上で自動投稿を実行します。
+            </p>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               ループ名 *
