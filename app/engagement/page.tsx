@@ -56,6 +56,9 @@ export default function EngagementPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [showForm, setShowForm] = useState(false);
+  const [editingRule, setEditingRule] = useState<EngagementRule | null>(null);
+  const [executingRule, setExecutingRule] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -126,6 +129,55 @@ export default function EngagementPage() {
       console.error('Error toggling status:', error);
       alert('ステータス変更に失敗しました');
     }
+  }
+
+  async function handleExecuteRule(ruleId: string) {
+    if (!confirm('このルールを今すぐ実行しますか？')) return;
+
+    setExecutingRule(ruleId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('ログインが必要です');
+        return;
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/execute-auto-engagement`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ rule_id: ruleId }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('ルール実行に失敗しました');
+      }
+
+      const result = await response.json();
+      alert(`実行完了: ${result.total_actions}件のアクション実行 (成功: ${result.total_successes}, 失敗: ${result.total_failures})`);
+      loadRules(); // Refresh rules list
+    } catch (error: any) {
+      console.error('Execution error:', error);
+      alert(`実行エラー: ${error.message}`);
+    } finally {
+      setExecutingRule(null);
+    }
+  }
+
+  function handleEdit(rule: EngagementRule) {
+    setEditingRule(rule);
+    setShowForm(true);
+  }
+
+  function handleFormClose() {
+    setShowForm(false);
+    setEditingRule(null);
+    loadRules();
   }
 
   function getRuleTypeBadge(type: string) {
@@ -208,7 +260,7 @@ export default function EngagementPage() {
               <RefreshCw className={cn('h-4 w-4 mr-2', loading && 'animate-spin')} />
               更新
             </Button>
-            <Button size="sm">
+            <Button onClick={() => setShowForm(true)} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               新規ルール
             </Button>
@@ -284,7 +336,7 @@ export default function EngagementPage() {
           <p className="text-muted-foreground mb-4">
             自動エンゲージメントルールを作成してください
           </p>
-          <Button>
+          <Button onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4 mr-2" />
             最初のルールを作成
           </Button>
@@ -347,6 +399,33 @@ export default function EngagementPage() {
 
                 <div className="flex items-center gap-2">
                   <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExecuteRule(rule.id)}
+                    disabled={executingRule === rule.id}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {executingRule === rule.id ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                        実行中
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4 mr-1" />
+                        今すぐ実行
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleEdit(rule)}
+                    title="編集"
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => handleToggleActive(rule.id, rule.is_active)}
@@ -371,6 +450,27 @@ export default function EngagementPage() {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50">
+          {/* Placeholder - Import actual form component */}
+          <div className="fixed inset-0 bg-black/50" onClick={handleFormClose}></div>
+          <div className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-4xl bg-white rounded-lg p-6 z-50 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">
+                {editingRule ? 'ルール編集' : '新規ルール作成'}
+              </h2>
+              <Button variant="ghost" size="icon" onClick={handleFormClose}>
+                <XCircle className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="text-center py-8 text-muted-foreground">
+              エンゲージメントルールフォームは次のコミットで完全実装されます
+            </div>
+          </div>
         </div>
       )}
     </div>
