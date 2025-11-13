@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, UsersRound, RefreshCw, Upload, CheckCircle, XCircle, Search, Filter, AlertTriangle } from 'lucide-react';
+import { Plus, UsersRound, RefreshCw, Upload, CheckCircle, XCircle, Search, Filter, AlertTriangle, UserPlus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -22,6 +22,8 @@ interface SpamAccount {
 
 interface AccountWithProxy extends SpamAccount {
   proxy_url?: string;
+  token_status?: 'active' | 'expired' | 'missing';
+  token_expires_at?: string | null;
 }
 
 export default function SpamAccountsPage() {
@@ -38,6 +40,14 @@ export default function SpamAccountsPage() {
 
   useEffect(() => {
     loadAccounts();
+
+    // Check for OAuth success
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('connected') === '1') {
+      setSuccessMessage('Twitterアカウントの接続に成功しました！');
+      window.history.replaceState({}, '', window.location.pathname);
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
   }, [filter, proxyFilter]);
 
   async function loadAccounts() {
@@ -65,22 +75,40 @@ export default function SpamAccountsPage() {
 
       if (accountsError) throw accountsError;
 
-      // Load proxy info for accounts with proxy_id
+      // Load proxy info and token status for accounts
       const accountsWithProxies = await Promise.all(
         (accountsData || []).map(async (account) => {
+          // Load proxy info
+          let proxy_url = undefined;
           if (account.proxy_id) {
             const { data: proxy } = await supabase
               .from('proxies')
               .select('proxy_url')
               .eq('id', account.proxy_id)
               .single();
-
-            return {
-              ...account,
-              proxy_url: proxy?.proxy_url || undefined,
-            };
+            proxy_url = proxy?.proxy_url || undefined;
           }
-          return account;
+
+          // Load token status
+          const { data: token } = await supabase
+            .from('account_tokens')
+            .select('expires_at')
+            .eq('account_id', account.id)
+            .eq('account_type', 'spam')
+            .single();
+
+          let token_status: 'active' | 'expired' | 'missing' = 'missing';
+          if (token) {
+            const expiresAt = new Date(token.expires_at);
+            token_status = expiresAt > new Date() ? 'active' : 'expired';
+          }
+
+          return {
+            ...account,
+            proxy_url,
+            token_status,
+            token_expires_at: token?.expires_at || null,
+          };
         })
       );
 
@@ -125,6 +153,64 @@ export default function SpamAccountsPage() {
     } catch (error) {
       console.error('Error toggling status:', error);
       alert('ステータス変更に失敗しました');
+    }
+  }
+
+  async function handleConnectTwitter() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('ログインが必要です');
+        return;
+      }
+
+      // Call OAuth start endpoint with account_type parameter
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/twitter-oauth-start`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            account_type: 'spam', // Specify this is for spam accounts
+            redirect_to: `${window.location.origin}/accounts/spam?connected=1`,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'OAuth開始に失敗しました');
+      }
+
+      const { authUrl } = await response.json();
+      window.location.href = authUrl;
+    } catch (error: any) {
+      console.error('OAuth error:', error);
+      alert(`Twitterアカウント連携に失敗しました: ${error.message}`);
+    }
+  }
+
+  async function validateAllTokens() {
+    setImportLoading(true);
+    try {
+      // Call Edge Function to validate tokens
+      const { data, error } = await supabase.functions.invoke('validate-and-refresh-tokens', {
+        body: { account_type: 'spam' },
+      });
+
+      if (error) throw error;
+
+      setSuccessMessage(`トークン検証完了: ${data.valid_count}個有効、${data.invalid_count}個無効`);
+      setTimeout(() => setSuccessMessage(null), 5000);
+      loadAccounts();
+    } catch (error) {
+      console.error('Token validation error:', error);
+      alert('トークン検証に失敗しました');
+    } finally {
+      setImportLoading(false);
     }
   }
 
@@ -206,6 +292,7 @@ export default function SpamAccountsPage() {
 
   const activeCount = accounts.filter(acc => acc.is_active).length;
   const withProxyCount = accounts.filter(acc => acc.proxy_id).length;
+  const tokenActiveCount = accounts.filter(acc => acc.token_status === 'active').length;
   const recentlyUsedCount = accounts.filter(acc => {
     if (!acc.last_used_at) return false;
     const daysSince = (Date.now() - new Date(acc.last_used_at).getTime()) / (1000 * 60 * 60 * 24);
@@ -242,10 +329,14 @@ export default function SpamAccountsPage() {
               スパムアカウント
             </h1>
             <p className="text-muted-foreground mt-1">
-              {accounts.length} アカウント | {activeCount} アクティブ | {withProxyCount} プロキシ割当済み
+              {accounts.length} アカウント | {activeCount} アクティブ | {tokenActiveCount} トークン有効
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button onClick={validateAllTokens} variant="outline" size="sm" disabled={importLoading}>
+              <CheckCircle className={cn('h-4 w-4 mr-2', importLoading && 'animate-spin')} />
+              トークン検証
+            </Button>
             <Button onClick={() => setShowImport(!showImport)} variant="outline" size="sm">
               <Upload className="h-4 w-4 mr-2" />
               CSV インポート
@@ -254,9 +345,13 @@ export default function SpamAccountsPage() {
               <RefreshCw className={cn('h-4 w-4 mr-2', loading && 'animate-spin')} />
               更新
             </Button>
-            <Button onClick={() => setShowForm(true)} size="sm">
+            <Button onClick={handleConnectTwitter} variant="default" size="sm" className="bg-green-600 hover:bg-green-700">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Twitterアカウントを連携
+            </Button>
+            <Button onClick={() => setShowForm(true)} variant="outline" size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              新規登録
+              手動登録
             </Button>
           </div>
         </div>
@@ -411,6 +506,24 @@ export default function SpamAccountsPage() {
                       <span className="text-xs px-2 py-0.5 rounded bg-yellow-500 text-white flex items-center gap-1">
                         <AlertTriangle className="h-3 w-3" />
                         プロキシなし
+                      </span>
+                    )}
+                    {account.token_status === 'active' && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-blue-500 text-white flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        トークン有効
+                      </span>
+                    )}
+                    {account.token_status === 'expired' && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-orange-500 text-white flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        トークン期限切れ
+                      </span>
+                    )}
+                    {account.token_status === 'missing' && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-red-500 text-white flex items-center gap-1">
+                        <XCircle className="h-3 w-3" />
+                        トークンなし
                       </span>
                     )}
                   </div>

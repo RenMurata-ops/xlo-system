@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import EngagementRuleForm from '@/components/engagement/EngagementRuleForm';
 
 interface EngagementRule {
   id: string;
@@ -455,23 +456,10 @@ export default function EngagementPage() {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50">
-          {/* Placeholder - Import actual form component */}
-          <div className="fixed inset-0 bg-black/50" onClick={handleFormClose}></div>
-          <div className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-4xl bg-white rounded-lg p-6 z-50 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">
-                {editingRule ? 'ルール編集' : '新規ルール作成'}
-              </h2>
-              <Button variant="ghost" size="icon" onClick={handleFormClose}>
-                <XCircle className="h-5 w-5" />
-              </Button>
-            </div>
-            <div className="text-center py-8 text-muted-foreground">
-              エンゲージメントルールフォームは次のコミットで完全実装されます
-            </div>
-          </div>
-        </div>
+        <EngagementRuleForm
+          rule={editingRule}
+          onClose={handleFormClose}
+        />
       )}
     </div>
   );
