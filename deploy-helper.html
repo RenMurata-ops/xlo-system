@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Edge Functions デプロイヘルパー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #3ecf8e;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 30px;
+        }
+        .instructions {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #3ecf8e;
+        }
+        .instructions h2 {
+            color: #3ecf8e;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+        .instructions code {
+            background: #0f172a;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #3ecf8e;
+        }
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 12px 20px;
+            background: #1e293b;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            background: #334155;
+        }
+        .tab.active {
+            background: #3ecf8e;
+            color: #0f172a;
+            font-weight: 600;
+        }
+        .function-content {
+            display: none;
+        }
+        .function-content.active {
+            display: block;
+        }
+        .function-header {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .function-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #3ecf8e;
+        }
+        .copy-btn {
+            padding: 10px 20px;
+            background: #3ecf8e;
+            color: #0f172a;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover {
+            background: #2ab074;
+            transform: translateY(-1px);
+        }
+        .copy-btn.copied {
+            background: #10b981;
+        }
+        .code-container {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0 0 8px 8px;
+            position: relative;
+        }
+        pre {
+            margin: 0;
+            padding: 20px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #e2e8f0;
+        }
+        .settings {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+        .settings h2 {
+            color: #3ecf8e;
+            margin-bottom: 15px;
+        }
+        .settings label {
+            display: block;
+            margin-bottom: 8px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        .settings input {
+            width: 100%;
+            padding: 10px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-family: monospace;
+            margin-bottom: 15px;
+        }
+        .checkbox-group {
+            margin-top: 20px;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+        .warning {
+            background: #78350f;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .warning strong {
+            color: #fbbf24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Supabase Edge Functions デプロイヘルパー</h1>
+        <p class="subtitle">13個のEdge Functionsを簡単にデプロイできます</p>
+
+        <div class="instructions">
+            <h2>📋 使い方</h2>
+            <ol>
+                <li>下のタブから各Functionを選択</li>
+                <li>「コピー」ボタンをクリックしてコードをコピー</li>
+                <li><code>https://supabase.com/dashboard/project/swyiwqzlmozlqircyyzr/functions</code> を開く</li>
+                <li>「Create a new function」をクリック</li>
+                <li>Function名を入力（例: <code>twitter-oauth-start</code>）</li>
+                <li><strong>「Verify JWT」をOFFにする</strong>（重要！）</li>
+                <li>コピーしたコードを貼り付け</li>
+                <li>「Deploy」をクリック</li>
+                <li>次のFunctionに進む</li>
+            </ol>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ 重要:</strong> すべてのFunctionで「Verify JWT」をOFF（チェックを外す）にしてください。ONのままだとエラーになります。
+        </div>
+
+        <div class="tabs" id="tabs"></div>
+
+        <div id="functions"></div>
+
+        <div class="settings">
+            <h2>⚙️ デプロイ後の環境変数設定</h2>
+            <p style="margin-bottom: 20px; color: #94a3b8;">
+                全Functionデプロイ後、以下のURLで環境変数を設定してください:<br>
+                <code style="background: #0f172a; padding: 4px 8px; border-radius: 4px; color: #3ecf8e;">
+                    https://supabase.com/dashboard/project/swyiwqzlmozlqircyyzr/settings/functions
+                </code>
+            </p>
+
+            <label>SUPABASE_URL</label>
+            <input type="text" value="https://swyiwqzlmozlqircyyzr.supabase.co" readonly>
+
+            <label>SUPABASE_ANON_KEY</label>
+            <input type="text" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3eWl3cXpsbW96bHFpcmN5eXpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3MzI4NjYsImV4cCI6MjA3ODMwODg2Nn0.MIbwT2_YIeCCVHjLF2fBFrTSpyvL7jnrqkj3sb7GMgE" readonly>
+
+            <label>SUPABASE_SERVICE_ROLE_KEY</label>
+            <input type="text" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3eWl3cXpsbW96bHFpcmN5eXpyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjczMjg2NiwiZXhwIjoyMDc4MzA4ODY2fQ.mxLpbEnuIcErBwypW8fZtufWsyDPlYII0gnnZWY3THo" readonly>
+
+            <label>APP_URL</label>
+            <input type="text" value="https://xlo-system-nygx6oglc-sakamoto334422-gmailcoms-projects.vercel.app" readonly>
+
+            <label>TWITTER_REDIRECT_URI</label>
+            <input type="text" value="https://swyiwqzlmozlqircyyzr.supabase.co/functions/v1/twitter-oauth-callback-v2" readonly>
+
+            <div style="margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 6px;">
+                <p style="color: #f59e0b; margin-bottom: 10px;"><strong>以下はTwitter Developer Portalから取得してください:</strong></p>
+                <label>TWITTER_CLIENT_ID</label>
+                <input type="text" placeholder="Twitter Developer Portalから取得">
+
+                <label>TWITTER_CLIENT_SECRET</label>
+                <input type="text" placeholder="Twitter Developer Portalから取得">
+
+                <label>TWITTER_API_KEY</label>
+                <input type="text" placeholder="Twitter Developer Portalから取得">
+
+                <label>TWITTER_API_SECRET</label>
+                <input type="text" placeholder="Twitter Developer Portalから取得">
+
+                <label>TWITTER_BEARER_TOKEN</label>
+                <input type="text" placeholder="Twitter Developer Portalから取得">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const functions = {
