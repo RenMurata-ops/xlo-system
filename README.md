@@ -1,13 +1,15 @@
 # XLO - X (Twitter) Mass Automation System
 
-**Production-Ready Twitter Automation Platform**
+**Production-Ready Twitter Automation Platform - 500 Accounts Supported**
 
-大量アカウントで安全に稼働できるX（Twitter）自動化システム。マルチテナント対応、健全性トラッキング、自動レート制限管理を実装。
+最大500アカウントで安全に稼働できるX（Twitter）自動化システム。NordVPN統合、健全性トラッキング、自動レート制限管理、マルチテナント対応を実装。
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-green)](https://supabase.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
+[![Max Accounts](https://img.shields.io/badge/Max_Accounts-500-brightgreen)](https://github.com)
+[![NordVPN](https://img.shields.io/badge/Proxy-NordVPN-blue)](https://nordvpn.com/)
 
 ---
 
@@ -36,12 +38,17 @@
 - **Actions**: いいね・RT・フォロー・リプライ
 - **Auto-Unfollow**: 日数指定での自動アンフォロー
 
-#### 大量稼働対応 🚀
-- **Rate Limiting**: アカウント単位の日次制限（Main: 1000, Spam: 500）
-- **Health Monitoring**: リアルタイム健全性監視
-- **Error Detection**: 自動エラー検出と対応
-- **Request Logging**: 全APIリクエストの詳細ログ
+#### 大量稼働対応（最大500アカウント）🚀
+- **NordVPN Integration**: 完全なプロキシ統合（6000+サーバー対応）
+- **High-Volume Rate Limits**: アカウント単位の日次制限（Main: 5000, Spam: 3000, Engagement: 4000）
+- **Proxy Load Balancing**: 自動プロキシ割り当てと負荷分散
+- **Mass Operations Dashboard**: 500アカウントのリアルタイム健全性監視
+- **Geographic Distribution**: 50+国への分散配置対応
+- **Health Monitoring**: アカウント・プロキシ両方の健全性監視
+- **Error Detection**: 自動エラー検出と対応（5連続エラーで自動停止）
+- **Request Logging**: 全APIリクエストの詳細ログ（proxy_used含む）
 - **Intelligent Rotation**: 健全なアカウントの自動選択
+- **Processing Capacity**: 210万リクエスト/日（500アカウント × 平均4200リクエスト）
 
 #### セキュリティ
 - **Row Level Security**: 全テーブルでRLS有効
