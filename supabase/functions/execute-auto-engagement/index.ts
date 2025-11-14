@@ -68,7 +68,7 @@ async function executeRule(
       const { data: canMakeRequest } = await supabase.rpc('can_account_make_request', {
         p_account_id: accountId,
         p_account_type: 'main', // Assuming engagement is done with main accounts
-        p_max_daily_requests: 800, // Conservative limit for engagement
+        p_max_daily_requests: 4000, // Increased for 500-account operation (80% of 5000)
       });
 
       if (canMakeRequest) {

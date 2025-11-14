@@ -151,30 +151,39 @@ serve(async (req) => {
     accountType = tokenRecord.account_type;
 
     // RATE LIMITING: Check if account can make request
+    // Increased limits for 500-account operation: Main=5000/day, Spam=3000/day
     const { data: canRequest } = await supabase.rpc('can_account_make_request', {
       p_account_id: accountDbId,
       p_account_type: accountType,
-      p_max_daily_requests: accountType === 'spam' ? 500 : 1000, // Lower limit for spam accounts
+      p_max_daily_requests: accountType === 'spam' ? 3000 : 5000,
     });
 
     if (!canRequest) {
       throw new Error('Account rate limit exceeded or health score too low');
     }
 
-    // Get proxy info for spam accounts (for future proxy support)
-    if (accountType === 'spam') {
-      const tableName = 'spam_accounts';
-      const { data: accountInfo } = await supabase
-        .from(tableName)
-        .select('proxy_id')
-        .eq('id', accountDbId)
+    // Get proxy info for both main and spam accounts
+    const tableName = accountType === 'main' ? 'main_accounts' : 'spam_accounts';
+    const { data: accountInfo } = await supabase
+      .from(tableName)
+      .select('proxy_id')
+      .eq('id', accountDbId)
+      .single();
+
+    let proxyInfo: any = null;
+    if (accountInfo?.proxy_id) {
+      proxyId = accountInfo.proxy_id;
+
+      // Get full proxy information including NordVPN config
+      const { data: proxy } = await supabase
+        .from('proxies')
+        .select('*')
+        .eq('id', proxyId)
         .single();
 
-      if (accountInfo?.proxy_id) {
-        proxyId = accountInfo.proxy_id;
-        // Note: Actual proxy usage would be implemented here
-        // Currently Supabase Edge Functions don't support HTTP proxies directly
-        console.log(`Proxy ${proxyId} associated with account, but direct proxy not yet supported`);
+      if (proxy && proxy.is_active) {
+        proxyInfo = proxy;
+        console.log(`Using proxy: ${proxy.name} (${proxy.provider_type})`);
       }
     }
 
@@ -199,17 +208,65 @@ serve(async (req) => {
       });
     }
 
-    // Make request to Twitter API
+    // Make request to Twitter API (with proxy support for NordVPN)
     const twitterHeaders: Record<string, string> = {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     };
 
+    let httpClient: Deno.HttpClient | undefined = undefined;
+
+    // Create HTTP client with proxy if available
+    if (proxyInfo) {
+      try {
+        if (proxyInfo.provider_type === 'nordvpn' && proxyInfo.nordvpn_server) {
+          // NordVPN HTTP proxy format: username:password@server:89
+          const proxyUrl = `http://${proxyInfo.nordvpn_server}:89`;
+
+          httpClient = Deno.createHttpClient({
+            proxy: {
+              url: proxyUrl,
+              basicAuth: {
+                username: proxyInfo.nordvpn_username || '',
+                password: proxyInfo.nordvpn_password || '',
+              },
+            },
+          });
+          console.log(`Created HTTP client with NordVPN proxy: ${proxyInfo.nordvpn_server}`);
+        } else if (proxyInfo.provider_type === 'manual' && proxyInfo.host && proxyInfo.port) {
+          // Manual proxy configuration
+          const protocol = proxyInfo.protocol || 'http';
+          const proxyUrl = `${protocol}://${proxyInfo.host}:${proxyInfo.port}`;
+
+          const proxyConfig: any = { url: proxyUrl };
+
+          if (proxyInfo.username && proxyInfo.password) {
+            proxyConfig.basicAuth = {
+              username: proxyInfo.username,
+              password: proxyInfo.password,
+            };
+          }
+
+          httpClient = Deno.createHttpClient({ proxy: proxyConfig });
+          console.log(`Created HTTP client with manual proxy: ${proxyInfo.host}:${proxyInfo.port}`);
+        }
+      } catch (proxyError) {
+        console.error('Failed to create proxy client, falling back to direct connection:', proxyError);
+        // Continue without proxy
+      }
+    }
+
     const twitterResponse = await fetch(twitterUrl.toString(), {
       method: method.toUpperCase(),
       headers: twitterHeaders,
       body: body ? JSON.stringify(body) : undefined,
+      client: httpClient,
     });
+
+    // Close HTTP client after use
+    if (httpClient) {
+      httpClient.close();
+    }
 
     const requestDuration = Date.now() - requestStartTime;
     const responseData = await twitterResponse.json();
@@ -260,7 +317,7 @@ serve(async (req) => {
       is_rate_limited: isRateLimited,
       is_error: !twitterResponse.ok,
       proxy_id: proxyId,
-      proxy_used: proxyId ? false : false, // Set to true when proxy actually used
+      proxy_used: httpClient !== undefined, // True if proxy was actually used
     });
 
     // Record success/failure for account health

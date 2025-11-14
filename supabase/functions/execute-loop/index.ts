@@ -70,7 +70,7 @@ async function pickAccounts(
       const { data: canMakeRequest } = await sb.rpc('can_account_make_request', {
         p_account_id: accountId,
         p_account_type: 'main',
-        p_max_daily_requests: 1000,
+        p_max_daily_requests: 5000, // Increased for 500-account operation
       });
 
       if (canMakeRequest) {
