@@ -8,7 +8,7 @@
 DROP TABLE IF EXISTS twitter_apps CASCADE;
 
 CREATE TABLE twitter_apps (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   app_name TEXT NOT NULL,
 
@@ -38,7 +38,7 @@ CREATE INDEX idx_twitter_apps_is_active ON twitter_apps(is_active);
 -- post_templates - 投稿テンプレート（要件準拠）
 -- ============================================================================
 CREATE TABLE post_templates (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
@@ -60,7 +60,7 @@ CREATE INDEX idx_post_templates_tags ON post_templates USING GIN(tags);
 -- post_template_items - 投稿テンプレートアイテム（重み付き）
 -- ============================================================================
 CREATE TABLE post_template_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   template_id UUID NOT NULL REFERENCES post_templates(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
@@ -79,7 +79,7 @@ CREATE INDEX idx_post_template_items_is_active ON post_template_items(is_active)
 -- cta_templates - CTA テンプレート
 -- ============================================================================
 CREATE TABLE cta_templates (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   content TEXT NOT NULL,
@@ -101,7 +101,7 @@ CREATE INDEX idx_cta_templates_is_active ON cta_templates(is_active);
 -- auto_engagement_executions - エンゲージメント実行ログ
 -- ============================================================================
 CREATE TABLE auto_engagement_executions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   rule_id UUID NOT NULL REFERENCES auto_engagement_rules(id) ON DELETE CASCADE,
   executor_account_id UUID,
@@ -124,7 +124,7 @@ CREATE INDEX idx_auto_engagement_executions_executed_at ON auto_engagement_execu
 -- loop_executions - ループ実行ログ（要件準拠名）
 -- ============================================================================
 CREATE TABLE loop_executions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   loop_id UUID NOT NULL REFERENCES loops(id) ON DELETE CASCADE,
   executor_account_id UUID,
@@ -152,7 +152,7 @@ CREATE INDEX idx_loop_executions_executed_at ON loop_executions(executed_at);
 -- oauth_sessions - OAuth セッション管理（PKCE対応）
 -- ============================================================================
 CREATE TABLE oauth_sessions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   state TEXT NOT NULL UNIQUE,
   code_verifier TEXT NOT NULL,
@@ -170,7 +170,7 @@ CREATE INDEX idx_oauth_sessions_expires_at ON oauth_sessions(expires_at);
 -- rate_limits - API レート制限記録
 -- ============================================================================
 CREATE TABLE rate_limits (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   app_id UUID REFERENCES twitter_apps(id) ON DELETE SET NULL,
   endpoint TEXT NOT NULL,

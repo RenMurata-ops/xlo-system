@@ -2,14 +2,14 @@
 -- Phase 1: Core Tables (Day 1)
 -- Created: 2025-11-10
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Note: gen_random_uuid() is built-in for PostgreSQL 13+
+-- No extension needed
 
 -- ============================================================================
 -- 1. account_tokens - アカウントトークン管理 (最重要)
 -- ============================================================================
 CREATE TABLE account_tokens (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   account_type TEXT NOT NULL CHECK (account_type IN ('main', 'follow', 'spam')),
   account_id UUID NOT NULL,
@@ -58,7 +58,7 @@ CREATE INDEX idx_account_tokens_is_active ON account_tokens(is_active);
 -- 2. main_accounts - メインアカウント
 -- ============================================================================
 CREATE TABLE main_accounts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   handle TEXT NOT NULL,
   name TEXT NOT NULL,
@@ -82,7 +82,7 @@ CREATE INDEX idx_main_accounts_tags ON main_accounts USING GIN(tags);
 -- 3. follow_accounts - フォローアカウント
 -- ============================================================================
 CREATE TABLE follow_accounts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   target_handle TEXT NOT NULL,
   target_name TEXT NOT NULL,
@@ -105,7 +105,7 @@ CREATE INDEX idx_follow_accounts_priority ON follow_accounts(priority);
 -- 4. spam_accounts - スパムアカウント
 -- ============================================================================
 CREATE TABLE spam_accounts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   handle TEXT NOT NULL,
   name TEXT NOT NULL,
@@ -126,7 +126,7 @@ CREATE INDEX idx_spam_accounts_is_active ON spam_accounts(is_active);
 -- 5. posts - 投稿管理
 -- ============================================================================
 CREATE TABLE posts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   account_id UUID NOT NULL,
   content TEXT NOT NULL,
@@ -151,7 +151,7 @@ CREATE INDEX idx_posts_scheduled_at ON posts(scheduled_at);
 -- 6. twitter_apps - Twitter アプリ管理 (複数App対応)
 -- ============================================================================
 CREATE TABLE twitter_apps (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   app_name TEXT NOT NULL,
   
@@ -181,7 +181,7 @@ CREATE INDEX idx_twitter_apps_is_active ON twitter_apps(is_active);
 -- 7. auto_engagement_rules - 自動エンゲージメントルール
 -- ============================================================================
 CREATE TABLE auto_engagement_rules (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   rule_name TEXT NOT NULL,
   rule_type TEXT NOT NULL CHECK (rule_type IN ('keyword', 'url', 'user')),
@@ -239,7 +239,7 @@ CREATE INDEX idx_auto_engagement_rules_rule_type ON auto_engagement_rules(rule_t
 -- 8. loops - ループ実行システム
 -- ============================================================================
 CREATE TABLE loops (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   loop_name TEXT NOT NULL,
   description TEXT,
@@ -277,7 +277,7 @@ CREATE INDEX idx_loops_next_execution_at ON loops(next_execution_at);
 -- 9. proxies - プロキシ管理
 -- ============================================================================
 CREATE TABLE proxies (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   proxy_type TEXT NOT NULL CHECK (proxy_type IN ('nordvpn', 'http', 'https', 'socks5')),
   proxy_url TEXT NOT NULL,
@@ -302,7 +302,7 @@ CREATE INDEX idx_proxies_proxy_type ON proxies(proxy_type);
 -- 10. nordvpn_accounts - NordVPN アカウント管理
 -- ============================================================================
 CREATE TABLE nordvpn_accounts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   username TEXT NOT NULL,
   password TEXT NOT NULL,
