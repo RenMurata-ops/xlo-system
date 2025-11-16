@@ -6,14 +6,25 @@ import { createClient } from '@/lib/supabase/client';
 
 interface EngagementRule {
   id: string;
-  rule_name: string;
-  rule_type: 'keyword' | 'url' | 'user';
+  user_id: string;
+  name: string;
+  description: string | null;
   is_active: boolean;
-  execution_frequency_minutes: number;
-  action_type: string[];
-  search_keywords: string[] | null;
-  target_user_ids: string[] | null;
+  search_type: 'keyword' | 'url' | 'user' | 'hashtag';
+  search_query: string;
+  action_type: 'like' | 'reply' | 'retweet' | 'follow' | 'quote';
+  reply_template_id: string | null;
+  min_followers: number;
+  max_followers: number | null;
+  min_account_age_days: number;
+  exclude_keywords: string[] | null;
+  exclude_verified: boolean;
+  require_verified: boolean;
   executor_account_ids: string[] | null;
+  allowed_account_tags: string[] | null;
+  max_actions_per_execution: number;
+  execution_interval_hours: number;
+  daily_limit: number;
 }
 
 interface EngagementRuleFormProps {
@@ -23,31 +34,53 @@ interface EngagementRuleFormProps {
 
 export default function EngagementRuleForm({ rule, onClose }: EngagementRuleFormProps) {
   const [formData, setFormData] = useState({
-    rule_name: '',
-    rule_type: 'keyword' as 'keyword' | 'url' | 'user',
-    execution_frequency_minutes: 30,
-    action_type: [] as string[],
-    search_keywords: '',
-    target_user_ids: '',
+    name: '',
+    description: '',
+    search_type: 'keyword' as 'keyword' | 'url' | 'user' | 'hashtag',
+    search_query: '',
+    action_type: 'like' as 'like' | 'reply' | 'retweet' | 'follow' | 'quote',
+    reply_template_id: '',
+    min_followers: 0,
+    max_followers: '',
+    min_account_age_days: 0,
+    exclude_keywords: '',
+    exclude_verified: false,
+    require_verified: false,
     executor_account_ids: '',
+    allowed_account_tags: '',
+    max_actions_per_execution: 10,
+    execution_interval_hours: 1,
+    daily_limit: 100,
     is_active: true,
   });
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const supabase = createClient();
 
   useEffect(() => {
     loadAccounts();
+    loadTemplates();
     if (rule) {
       setFormData({
-        rule_name: rule.rule_name,
-        rule_type: rule.rule_type,
-        execution_frequency_minutes: rule.execution_frequency_minutes,
+        name: rule.name,
+        description: rule.description || '',
+        search_type: rule.search_type,
+        search_query: rule.search_query,
         action_type: rule.action_type,
-        search_keywords: rule.search_keywords ? rule.search_keywords.join(', ') : '',
-        target_user_ids: rule.target_user_ids ? rule.target_user_ids.join(', ') : '',
+        reply_template_id: rule.reply_template_id || '',
+        min_followers: rule.min_followers,
+        max_followers: rule.max_followers?.toString() || '',
+        min_account_age_days: rule.min_account_age_days,
+        exclude_keywords: rule.exclude_keywords ? rule.exclude_keywords.join(', ') : '',
+        exclude_verified: rule.exclude_verified,
+        require_verified: rule.require_verified,
         executor_account_ids: rule.executor_account_ids ? rule.executor_account_ids.join(', ') : '',
+        allowed_account_tags: rule.allowed_account_tags ? rule.allowed_account_tags.join(', ') : '',
+        max_actions_per_execution: rule.max_actions_per_execution,
+        execution_interval_hours: rule.execution_interval_hours,
+        daily_limit: rule.daily_limit,
         is_active: rule.is_active,
       });
     }
@@ -56,10 +89,10 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
   async function loadAccounts() {
     try {
       const { data, error } = await supabase
-        .from('main_accounts')
-        .select('id, account_handle')
+        .from('account_tokens')
+        .select('id, x_username')
         .eq('is_active', true)
-        .order('account_handle');
+        .order('x_username');
 
       if (error) throw error;
       setAccounts(data || []);
@@ -68,19 +101,21 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
     }
   }
 
-  const handleActionTypeToggle = (action: string) => {
-    if (formData.action_type.includes(action)) {
-      setFormData({
-        ...formData,
-        action_type: formData.action_type.filter(a => a !== action)
-      });
-    } else {
-      setFormData({
-        ...formData,
-        action_type: [...formData.action_type, action]
-      });
+  async function loadTemplates() {
+    try {
+      const { data, error } = await supabase
+        .from('post_templates')
+        .select('id, name, template_type')
+        .eq('is_active', true)
+        .in('template_type', ['reply', 'quote'])
+        .order('name');
+
+      if (error) throw error;
+      setTemplates(data || []);
+    } catch (error) {
+      console.error('Error loading templates:', error);
     }
-  };
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,33 +126,46 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('ログインが必要です');
 
-      if (formData.action_type.length === 0) {
-        throw new Error('少なくとも1つのアクションを選択してください');
+      if (!formData.name) throw new Error('ルール名は必須です');
+      if (!formData.search_query) throw new Error('検索クエリは必須です');
+
+      if (['reply', 'quote'].includes(formData.action_type) && !formData.reply_template_id) {
+        throw new Error('リプライ/引用アクションにはテンプレートが必要です');
       }
 
-      const searchKeywords = formData.search_keywords
+      const excludeKeywords = formData.exclude_keywords
         .split(',')
         .map(k => k.trim())
         .filter(k => k.length > 0);
-
-      const targetUserIds = formData.target_user_ids
-        .split(',')
-        .map(id => id.trim())
-        .filter(id => id.length > 0);
 
       const executorAccountIds = formData.executor_account_ids
         .split(',')
         .map(id => id.trim())
         .filter(id => id.length > 0);
 
+      const allowedAccountTags = formData.allowed_account_tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+
       const payload = {
-        rule_name: formData.rule_name,
-        rule_type: formData.rule_type,
-        execution_frequency_minutes: formData.execution_frequency_minutes,
+        name: formData.name,
+        description: formData.description || null,
+        search_type: formData.search_type,
+        search_query: formData.search_query,
         action_type: formData.action_type,
-        search_keywords: searchKeywords.length > 0 ? searchKeywords : null,
-        target_user_ids: targetUserIds.length > 0 ? targetUserIds : null,
+        reply_template_id: formData.reply_template_id || null,
+        min_followers: formData.min_followers,
+        max_followers: formData.max_followers ? parseInt(formData.max_followers) : null,
+        min_account_age_days: formData.min_account_age_days,
+        exclude_keywords: excludeKeywords.length > 0 ? excludeKeywords : null,
+        exclude_verified: formData.exclude_verified,
+        require_verified: formData.require_verified,
         executor_account_ids: executorAccountIds.length > 0 ? executorAccountIds : null,
+        allowed_account_tags: allowedAccountTags.length > 0 ? allowedAccountTags : null,
+        max_actions_per_execution: formData.max_actions_per_execution,
+        execution_interval_hours: formData.execution_interval_hours,
+        daily_limit: formData.daily_limit,
         is_active: formData.is_active,
         user_id: user.id,
       };
@@ -146,9 +194,9 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8">
+        <div className="sticky top-0 bg-white flex items-center justify-between p-6 border-b border-gray-200 z-10">
           <h2 className="text-2xl font-bold text-gray-900">
             {rule ? 'ルール編集' : '新規ルール作成'}
           </h2>
@@ -167,125 +215,290 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              ルール名 *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.rule_name}
-              onChange={(e) => setFormData({ ...formData, rule_name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="例: テック系キーワード自動いいね"
-            />
+          {/* 基本情報 */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 pb-2 border-b">基本情報</h3>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ルール名 *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="例: テック系キーワード自動いいね"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                説明
+              </label>
+              <textarea
+                rows={2}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="このルールの説明"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              ルールタイプ *
-            </label>
-            <select
-              required
-              value={formData.rule_type}
-              onChange={(e) => setFormData({ ...formData, rule_type: e.target.value as any })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="keyword">キーワードベース</option>
-              <option value="url">URLベース</option>
-              <option value="user">ユーザーベース</option>
-            </select>
-          </div>
+          {/* 検索設定 */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 pb-2 border-b">検索設定</h3>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              実行頻度（分） *
-            </label>
-            <input
-              type="number"
-              min="5"
-              max="1440"
-              required
-              value={formData.execution_frequency_minutes}
-              onChange={(e) => setFormData({ ...formData, execution_frequency_minutes: parseInt(e.target.value) || 30 })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              5分〜1440分（24時間）の範囲で設定してください
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              アクションタイプ *
-            </label>
-            <div className="space-y-2">
-              {['like', 'reply', 'follow', 'retweet'].map(action => (
-                <label key={action} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.action_type.includes(action)}
-                    onChange={() => handleActionTypeToggle(action)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">
-                    {action === 'like' && 'いいね'}
-                    {action === 'reply' && 'リプライ'}
-                    {action === 'follow' && 'フォロー'}
-                    {action === 'retweet' && 'リツイート'}
-                  </span>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  検索タイプ *
                 </label>
-              ))}
+                <select
+                  required
+                  value={formData.search_type}
+                  onChange={(e) => setFormData({ ...formData, search_type: e.target.value as any })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="keyword">キーワード検索</option>
+                  <option value="hashtag">ハッシュタグ検索</option>
+                  <option value="user">ユーザー検索</option>
+                  <option value="url">URL検索</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  検索クエリ *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.search_query}
+                  onChange={(e) => setFormData({ ...formData, search_query: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder={
+                    formData.search_type === 'keyword' ? '例: AI プログラミング' :
+                    formData.search_type === 'hashtag' ? '例: ChatGPT' :
+                    formData.search_type === 'user' ? '例: username' : '例: example.com'
+                  }
+                />
+              </div>
             </div>
           </div>
 
-          {formData.rule_type === 'keyword' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                検索キーワード（カンマ区切り）
-              </label>
-              <textarea
-                rows={3}
-                value={formData.search_keywords}
-                onChange={(e) => setFormData({ ...formData, search_keywords: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="AI, 機械学習, プログラミング"
-              />
-            </div>
-          )}
+          {/* アクション設定 */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 pb-2 border-b">アクション設定</h3>
 
-          {formData.rule_type === 'user' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                ターゲットユーザーID（カンマ区切り）
-              </label>
-              <textarea
-                rows={3}
-                value={formData.target_user_ids}
-                onChange={(e) => setFormData({ ...formData, target_user_ids: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="user_id_1, user_id_2, user_id_3"
-              />
-            </div>
-          )}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  アクションタイプ *
+                </label>
+                <select
+                  required
+                  value={formData.action_type}
+                  onChange={(e) => setFormData({ ...formData, action_type: e.target.value as any })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="like">いいね</option>
+                  <option value="retweet">リツイート</option>
+                  <option value="reply">リプライ</option>
+                  <option value="quote">引用ツイート</option>
+                  <option value="follow">フォロー</option>
+                </select>
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              実行アカウントID（カンマ区切り）
-            </label>
-            <textarea
-              rows={2}
-              value={formData.executor_account_ids}
-              onChange={(e) => setFormData({ ...formData, executor_account_ids: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-              placeholder="account_id_1, account_id_2"
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              空欄の場合はすべてのアクティブアカウントが対象になります
-            </p>
+              {['reply', 'quote'].includes(formData.action_type) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    テンプレート *
+                  </label>
+                  <select
+                    required={['reply', 'quote'].includes(formData.action_type)}
+                    value={formData.reply_template_id}
+                    onChange={(e) => setFormData({ ...formData, reply_template_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">テンプレートを選択</option>
+                    {templates.map(tmpl => (
+                      <option key={tmpl.id} value={tmpl.id}>
+                        {tmpl.name} ({tmpl.template_type})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* フィルター設定 */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 pb-2 border-b">フィルター設定</h3>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  最小フォロワー数
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.min_followers}
+                  onChange={(e) => setFormData({ ...formData, min_followers: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  最大フォロワー数
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.max_followers}
+                  onChange={(e) => setFormData({ ...formData, max_followers: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="無制限"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  最小アカウント年齢（日）
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.min_account_age_days}
+                  onChange={(e) => setFormData({ ...formData, min_account_age_days: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                除外キーワード（カンマ区切り）
+              </label>
+              <textarea
+                rows={2}
+                value={formData.exclude_keywords}
+                onChange={(e) => setFormData({ ...formData, exclude_keywords: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="スパム, 詐欺, 広告"
+              />
+            </div>
+
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.exclude_verified}
+                  onChange={(e) => setFormData({ ...formData, exclude_verified: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">認証済みアカウントを除外</span>
+              </label>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.require_verified}
+                  onChange={(e) => setFormData({ ...formData, require_verified: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">認証済みアカウントのみ</span>
+              </label>
+            </div>
+          </div>
+
+          {/* 実行設定 */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 pb-2 border-b">実行設定</h3>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  実行間隔（時間） *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="24"
+                  required
+                  value={formData.execution_interval_hours}
+                  onChange={(e) => setFormData({ ...formData, execution_interval_hours: parseInt(e.target.value) || 1 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  1回の実行でのアクション数 *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  required
+                  value={formData.max_actions_per_execution}
+                  onChange={(e) => setFormData({ ...formData, max_actions_per_execution: parseInt(e.target.value) || 10 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  日次リミット *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  required
+                  value={formData.daily_limit}
+                  onChange={(e) => setFormData({ ...formData, daily_limit: parseInt(e.target.value) || 100 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                実行アカウントID（カンマ区切り）
+              </label>
+              <textarea
+                rows={2}
+                value={formData.executor_account_ids}
+                onChange={(e) => setFormData({ ...formData, executor_account_ids: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                placeholder="空欄の場合はすべてのアクティブアカウントが対象"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                利用可能なアカウント: {accounts.length}件
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                許可するアカウントタグ（カンマ区切り）
+              </label>
+              <input
+                type="text"
+                value={formData.allowed_account_tags}
+                onChange={(e) => setFormData({ ...formData, allowed_account_tags: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="例: main, sub"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-4 border-t">
             <input
               type="checkbox"
               id="is_active"
@@ -298,7 +511,7 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
             </label>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4">
+          <div className="flex items-center justify-end gap-3 pt-4 sticky bottom-0 bg-white border-t">
             <button
               type="button"
               onClick={onClose}

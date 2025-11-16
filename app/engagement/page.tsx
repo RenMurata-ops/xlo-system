@@ -9,18 +9,32 @@ import EngagementHistory from '@/components/engagement/EngagementHistory';
 
 interface EngagementRule {
   id: string;
-  rule_name: string;
-  rule_type: 'keyword' | 'url' | 'user';
+  user_id: string;
+  name: string;
+  description: string | null;
   is_active: boolean;
-  execution_frequency_minutes: number;
-  action_type: string[];
-  search_keywords: string[] | null;
-  target_user_ids: string[] | null;
+  search_type: 'keyword' | 'url' | 'user' | 'hashtag';
+  search_query: string;
+  action_type: 'like' | 'reply' | 'retweet' | 'follow' | 'quote';
+  reply_template_id: string | null;
+  min_followers: number;
+  max_followers: number | null;
+  min_account_age_days: number;
+  exclude_keywords: string[] | null;
+  exclude_verified: boolean;
+  require_verified: boolean;
   executor_account_ids: string[] | null;
-  total_executions: number;
+  allowed_account_tags: string[] | null;
+  max_actions_per_execution: number;
+  execution_interval_hours: number;
+  daily_limit: number;
+  actions_today: number;
+  last_daily_reset: string;
+  next_execution_at: string | null;
+  last_execution_at: string | null;
+  total_actions_count: number;
   success_count: number;
-  error_count: number;
-  last_executed_at: string | null;
+  failure_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -101,9 +115,10 @@ export default function EngagementPage() {
   }
 
   const activeRules = rules.filter(r => r.is_active).length;
-  const totalExecutions = rules.reduce((sum, r) => sum + r.total_executions, 0);
-  const successRate = totalExecutions > 0
-    ? ((rules.reduce((sum, r) => sum + r.success_count, 0) / totalExecutions) * 100).toFixed(1)
+  const totalActions = rules.reduce((sum, r) => sum + r.total_actions_count, 0);
+  const totalSuccess = rules.reduce((sum, r) => sum + r.success_count, 0);
+  const successRate = totalActions > 0
+    ? ((totalSuccess / totalActions) * 100).toFixed(1)
     : '0';
 
   if (loading) {
@@ -158,8 +173,8 @@ export default function EngagementPage() {
           <div className="text-3xl font-bold text-green-600">{activeRules}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">総実行回数</div>
-          <div className="text-3xl font-bold text-blue-600">{totalExecutions.toLocaleString()}</div>
+          <div className="text-sm text-gray-600 mb-1">総アクション数</div>
+          <div className="text-3xl font-bold text-blue-600">{totalActions.toLocaleString()}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="text-sm text-gray-600 mb-1">成功率</div>
@@ -193,6 +208,7 @@ export default function EngagementPage() {
               onEdit={() => handleEdit(rule)}
               onDelete={() => handleDelete(rule.id)}
               onToggleActive={() => handleToggleActive(rule.id, rule.is_active)}
+              onRefresh={loadRules}
             />
           ))}
         </div>
