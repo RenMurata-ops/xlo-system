@@ -192,6 +192,8 @@ serve(async (req) => {
       .eq('is_active', true)
       .limit(100);
 
+    console.log('All active loops:', allLoops?.length, allLoops);
+
     if (loopsErr) {
       throw loopsErr;
     }
@@ -200,13 +202,22 @@ serve(async (req) => {
     const loops = (allLoops || [])
       .filter((loop: any) => {
         // Check if ready to execute
-        if (!loop.next_execution_at) return true;
+        if (!loop.next_execution_at) {
+          console.log(`Loop ${loop.id}: no next_execution_at, including`);
+          return true;
+        }
         const nextExec = new Date(loop.next_execution_at);
+        console.log(`Loop ${loop.id}: next_execution_at=${loop.next_execution_at}, now=${now.toISOString()}, nextExec > now = ${nextExec > now}`);
         if (nextExec > now) return false;
 
         // Check if locked
-        if (!loop.locked_until) return true;
-        return new Date(loop.locked_until) < now;
+        if (!loop.locked_until) {
+          console.log(`Loop ${loop.id}: not locked, including`);
+          return true;
+        }
+        const lockedUntil = new Date(loop.locked_until);
+        console.log(`Loop ${loop.id}: locked_until=${loop.locked_until}, expired=${lockedUntil < now}`);
+        return lockedUntil < now;
       })
       .sort((a: any, b: any) => {
         if (!a.next_execution_at) return -1;
@@ -214,6 +225,8 @@ serve(async (req) => {
         return new Date(a.next_execution_at).getTime() - new Date(b.next_execution_at).getTime();
       })
       .slice(0, 20);
+
+    console.log('Filtered loops count:', loops.length);
 
     if (!loops || loops.length === 0) {
       return new Response(
@@ -284,11 +297,11 @@ serve(async (req) => {
           user_id: loop.user_id,
           loop_id: loop.id,
           executor_account_id: usedAccountIds[0] || null,
-          created_posts_count: postsCreated,
-          sent_replies_count: 0,
-          used_account_ids: usedAccountIds,
+          posts_created: postsCreated,
+          replies_sent: 0,
+          accounts_used: usedAccountIds,
           status: postsCreated > 0 ? 'success' : 'failed',
-          exec_data: { posts_created: postsCreated, accounts_used: usedAccountIds.length, trace_id: traceId },
+          execution_data: { posts_created: postsCreated, accounts_used: usedAccountIds.length, trace_id: traceId },
           trace_id: traceId,
           executed_at: new Date().toISOString(),
         });
@@ -320,12 +333,12 @@ serve(async (req) => {
           user_id: loop.user_id,
           loop_id: loop.id,
           executor_account_id: usedAccountIds[0] || null,
-          created_posts_count: postsCreated,
-          sent_replies_count: 0,
-          used_account_ids: usedAccountIds,
+          posts_created: postsCreated,
+          replies_sent: 0,
+          accounts_used: usedAccountIds,
           status: 'failed',
           error_message: error.message,
-          exec_data: { error: error.message, trace_id: traceId },
+          execution_data: { error: error.message, trace_id: traceId },
           trace_id: traceId,
           executed_at: new Date().toISOString(),
         });
