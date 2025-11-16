@@ -5,6 +5,11 @@
       "name": "schedule-loop-execution",
       "schedule": "*/10 * * * *",
       "description": "Execute loops every 10 minutes"
+    },
+    {
+      "name": "execute-auto-engagement",
+      "schedule": "*/15 * * * *",
+      "description": "Execute auto engagement rules every 15 minutes"
     }
   ]
 }
