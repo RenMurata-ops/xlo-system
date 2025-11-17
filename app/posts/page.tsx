@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import PostCard from '@/components/posts/PostCard';
 import PostForm from '@/components/posts/PostForm';
+import PostPreview from '@/components/posts/PostPreview';
 
 interface Post {
   id: string;
@@ -26,6 +27,8 @@ export default function PostsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewPost, setPreviewPost] = useState<Post | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [bulkExecuting, setBulkExecuting] = useState(false);
   const [bulkResult, setBulkResult] = useState<any>(null);
@@ -99,6 +102,11 @@ export default function PostsPage() {
     setShowForm(false);
     setEditingPost(null);
     loadPosts();
+  }
+
+  function handlePreview(post: Post) {
+    setPreviewPost(post);
+    setShowPreview(true);
   }
 
   async function handleBulkExecute(batchSize: number = 10) {
@@ -346,6 +354,7 @@ export default function PostsPage() {
               onEdit={() => handleEdit(post)}
               onDelete={() => handleDelete(post.id)}
               onStatusChange={(status) => handleStatusChange(post.id, status)}
+              onPreview={() => handlePreview(post)}
             />
           ))}
         </div>
@@ -355,6 +364,13 @@ export default function PostsPage() {
         <PostForm
           post={editingPost}
           onClose={handleFormClose}
+        />
+      )}
+
+      {showPreview && previewPost && (
+        <PostPreview
+          post={previewPost}
+          onClose={() => setShowPreview(false)}
         />
       )}
     </div>

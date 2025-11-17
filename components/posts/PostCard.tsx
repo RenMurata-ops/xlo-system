@@ -1,6 +1,6 @@
 'use client';
 
-import { Edit2, Trash2, Calendar, Heart, Image as ImageIcon, Clock } from 'lucide-react';
+import { Edit2, Trash2, Calendar, Heart, Image as ImageIcon, Clock, Eye } from 'lucide-react';
 
 interface Post {
   id: string;
@@ -21,13 +21,15 @@ interface PostCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onStatusChange: (status: string) => void;
+  onPreview: () => void;
 }
 
 export default function PostCard({
   post,
   onEdit,
   onDelete,
-  onStatusChange
+  onStatusChange,
+  onPreview
 }: PostCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -119,6 +121,14 @@ export default function PostCard({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={onPreview}
+            className="p-2 text-purple-600 hover:bg-purple-50 rounded transition"
+            title="プレビュー"
+          >
+            <Eye size={16} />
+          </button>
+
           <button
             onClick={onEdit}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
