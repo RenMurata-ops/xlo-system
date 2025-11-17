@@ -5,6 +5,9 @@ import { RefreshCw, TrendingUp, Users, FileText, Zap, Repeat, MessageCircle, Glo
 import { createClient } from '@/lib/supabase/client';
 import StatsCard from '@/components/dashboard/StatsCard';
 import QuickActions from '@/components/dashboard/QuickActions';
+import RateLimitMonitor from '@/components/dashboard/RateLimitMonitor';
+import LoopLockMonitor from '@/components/dashboard/LoopLockMonitor';
+import DuplicateAttemptsMonitor from '@/components/dashboard/DuplicateAttemptsMonitor';
 
 interface DashboardStats {
   totalTwitterApps: number;
@@ -224,6 +227,15 @@ export default function DashboardPage() {
               icon={<TrendingUp size={24} />}
               color="green"
             />
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-white mb-4">リアルタイムモニタリング</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <RateLimitMonitor />
+            <LoopLockMonitor />
+            <DuplicateAttemptsMonitor />
           </div>
         </div>
 
