@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, Globe, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import ProxyCard from '@/components/proxies/ProxyCard';
 import ProxyForm from '@/components/proxies/ProxyForm';
 
@@ -64,9 +65,10 @@ export default function ProxiesPage() {
       if (error) throw error;
 
       setProxies(proxies.filter(proxy => proxy.id !== id));
+      toast.success('プロキシを削除しました');
     } catch (error) {
       console.error('Error deleting proxy:', error);
-      alert('削除に失敗しました');
+      toast.error('削除に失敗しました');
     }
   }
 
@@ -82,9 +84,10 @@ export default function ProxiesPage() {
       setProxies(proxies.map(proxy =>
         proxy.id === id ? { ...proxy, is_active: !currentStatus } : proxy
       ));
+      toast.success(currentStatus ? 'プロキシを停止しました' : 'プロキシを有効化しました');
     } catch (error) {
       console.error('Error toggling status:', error);
-      alert('ステータス変更に失敗しました');
+      toast.error('ステータス変更に失敗しました');
     }
   }
 
@@ -104,10 +107,10 @@ export default function ProxiesPage() {
       if (error) throw error;
 
       loadProxies();
-      alert('テスト成功');
+      toast.success('プロキシテスト成功');
     } catch (error) {
       console.error('Error testing proxy:', error);
-      alert('テストに失敗しました');
+      toast.error('テストに失敗しました');
     }
   }
 

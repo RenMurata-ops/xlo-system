@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, UserPlus, RefreshCw, Filter } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import FollowAccountCard from '@/components/accounts/FollowAccountCard';
 import FollowAccountForm from '@/components/accounts/FollowAccountForm';
 
@@ -61,9 +62,10 @@ export default function FollowAccountsPage() {
       if (error) throw error;
 
       setAccounts(accounts.filter(acc => acc.id !== id));
+      toast.success('アカウントを削除しました');
     } catch (error) {
       console.error('Error deleting account:', error);
-      alert('削除に失敗しました');
+      toast.error('削除に失敗しました');
     }
   }
 
@@ -79,9 +81,10 @@ export default function FollowAccountsPage() {
       setAccounts(accounts.map(acc =>
         acc.id === id ? { ...acc, is_active: !currentStatus } : acc
       ));
+      toast.success(currentStatus ? 'アカウントを停止しました' : 'アカウントを有効化しました');
     } catch (error) {
       console.error('Error toggling status:', error);
-      alert('ステータス変更に失敗しました');
+      toast.error('ステータス変更に失敗しました');
     }
   }
 

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Edit2, Trash2, CheckCircle, XCircle, Zap, Heart, MessageCircle, UserPlus, Repeat, Quote } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 
 interface EngagementRule {
   id: string;
@@ -105,9 +106,11 @@ export default function EngagementRuleCard({
     : '0';
 
   const handleExecuteNow = async () => {
-    if (!confirm(`「${rule.name}」を今すぐ実行しますか？`)) return;
-
     setExecuting(true);
+    const loadingToast = toast.loading('実行中...', {
+      description: `ルール: ${rule.name}`,
+    });
+
     try {
       const { data, error } = await supabase.functions.invoke('execute-auto-engagement', {
         body: { rule_id: rule.id },
@@ -116,14 +119,30 @@ export default function EngagementRuleCard({
       if (error) throw error;
 
       if (data?.ok) {
-        alert(`実行完了: ${data.results?.[0]?.actions_succeeded || 0}件成功`);
+        const result = data.results?.[0];
+        toast.success('実行完了', {
+          id: loadingToast,
+          description: `${result?.actions_succeeded || 0}件成功 / ${result?.actions_attempted || 0}件試行`,
+          action: result?.trace_id ? {
+            label: 'trace_id をコピー',
+            onClick: () => {
+              navigator.clipboard.writeText(result.trace_id);
+              toast.info('trace_id をコピーしました');
+            },
+          } : undefined,
+        });
         onRefresh?.();
       } else {
-        alert('実行に失敗しました');
+        toast.error('実行に失敗しました', {
+          id: loadingToast,
+        });
       }
     } catch (error: any) {
       console.error('Execute now error:', error);
-      alert(`実行エラー: ${error.message}`);
+      toast.error('実行エラー', {
+        id: loadingToast,
+        description: error.message,
+      });
     } finally {
       setExecuting(false);
     }

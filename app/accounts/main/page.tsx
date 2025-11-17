@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Users, RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import MainAccountCard from '@/components/accounts/MainAccountCard';
 import MainAccountForm from '@/components/accounts/MainAccountForm';
 
@@ -34,10 +35,9 @@ export default function MainAccountsPage() {
     // Check for OAuth success
     const params = new URLSearchParams(window.location.search);
     if (params.get('connected') === '1') {
-      setSuccessMessage('Twitterアカウントの接続に成功しました！');
+      toast.success('Twitterアカウントの接続に成功しました！');
       // Remove query param from URL
       window.history.replaceState({}, '', window.location.pathname);
-      setTimeout(() => setSuccessMessage(null), 5000);
     }
   }, []);
 
@@ -69,9 +69,10 @@ export default function MainAccountsPage() {
       if (error) throw error;
 
       setAccounts(accounts.filter(acc => acc.id !== id));
+      toast.success('アカウントを削除しました');
     } catch (error) {
       console.error('Error deleting account:', error);
-      alert('削除に失敗しました');
+      toast.error('削除に失敗しました');
     }
   }
 
@@ -87,9 +88,10 @@ export default function MainAccountsPage() {
       setAccounts(accounts.map(acc =>
         acc.id === id ? { ...acc, is_active: !currentStatus } : acc
       ));
+      toast.success(currentStatus ? 'アカウントを停止しました' : 'アカウントを有効化しました');
     } catch (error) {
       console.error('Error toggling status:', error);
-      alert('ステータス変更に失敗しました');
+      toast.error('ステータス変更に失敗しました');
     }
   }
 

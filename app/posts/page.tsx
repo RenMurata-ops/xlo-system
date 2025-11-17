@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, Calendar, FileText, Filter } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import PostCard from '@/components/posts/PostCard';
 import PostForm from '@/components/posts/PostForm';
 
@@ -63,9 +64,10 @@ export default function PostsPage() {
       if (error) throw error;
 
       setPosts(posts.filter(post => post.id !== id));
+      toast.success('投稿を削除しました');
     } catch (error) {
       console.error('Error deleting post:', error);
-      alert('削除に失敗しました');
+      toast.error('削除に失敗しました');
     }
   }
 
@@ -81,9 +83,10 @@ export default function PostsPage() {
       setPosts(posts.map(post =>
         post.id === id ? { ...post, status: newStatus as any } : post
       ));
+      toast.success('ステータスを変更しました');
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('ステータス変更に失敗しました');
+      toast.error('ステータス変更に失敗しました');
     }
   }
 
@@ -105,15 +108,21 @@ export default function PostsPage() {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('ログインが必要です');
+        toast.error('ログインが必要です');
+        setBulkExecuting(false);
         return;
       }
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        alert('ユーザー情報の取得に失敗しました');
+        toast.error('ユーザー情報の取得に失敗しました');
+        setBulkExecuting(false);
         return;
       }
+
+      const loadingToast = toast.loading(dryRun ? 'プレビュー中...' : '一括投稿実行中...', {
+        description: 'しばらくお待ちください',
+      });
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/execute-bulk-posts`,
@@ -139,14 +148,29 @@ export default function PostsPage() {
       setBulkResult(result);
 
       if (!dryRun && result.succeeded > 0) {
+        toast.success('一括投稿実行完了', {
+          id: loadingToast,
+          description: `${result.succeeded}件成功 / ${result.failed}件失敗`,
+        });
         loadPosts(); // Reload posts after successful execution
+      } else if (dryRun) {
+        toast.info('プレビュー完了', {
+          id: loadingToast,
+          description: `処理予定: ${result.processed}件`,
+        });
+      } else {
+        toast.info('投稿する内容がありません', {
+          id: loadingToast,
+        });
       }
 
       // Auto-clear result after 10 seconds
       setTimeout(() => setBulkResult(null), 10000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Bulk execution error:', error);
-      alert('一括投稿の実行に失敗しました');
+      toast.error('一括投稿の実行に失敗しました', {
+        description: error.message,
+      });
     } finally {
       setBulkExecuting(false);
     }

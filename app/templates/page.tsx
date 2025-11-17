@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, FileText, Filter } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import TemplateCard from '@/components/templates/TemplateCard';
 import TemplateForm from '@/components/templates/TemplateForm';
 import TemplatePreview from '@/components/templates/TemplatePreview';
@@ -63,9 +64,10 @@ export default function TemplatesPage() {
       if (error) throw error;
 
       setTemplates(templates.filter(tmpl => tmpl.id !== id));
+      toast.success('テンプレートを削除しました');
     } catch (error) {
       console.error('Error deleting template:', error);
-      alert('削除に失敗しました');
+      toast.error('削除に失敗しました');
     }
   }
 
@@ -81,9 +83,10 @@ export default function TemplatesPage() {
       setTemplates(templates.map(tmpl =>
         tmpl.id === id ? { ...tmpl, is_active: !currentStatus } : tmpl
       ));
+      toast.success(currentStatus ? 'テンプレートを停止しました' : 'テンプレートを有効化しました');
     } catch (error) {
       console.error('Error toggling status:', error);
-      alert('ステータス変更に失敗しました');
+      toast.error('ステータス変更に失敗しました');
     }
   }
 

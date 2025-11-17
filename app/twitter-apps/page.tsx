@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Settings } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import TwitterAppForm from '@/components/twitter-apps/TwitterAppForm';
 import TwitterAppCard from '@/components/twitter-apps/TwitterAppCard';
 
@@ -58,9 +59,10 @@ export default function TwitterAppsPage() {
       if (error) throw error;
 
       setApps(apps.filter(app => app.id !== id));
+      toast.success('Twitterアプリを削除しました');
     } catch (error) {
       console.error('Error deleting app:', error);
-      alert('削除に失敗しました');
+      toast.error('削除に失敗しました');
     }
   }
 
@@ -76,9 +78,10 @@ export default function TwitterAppsPage() {
       setApps(apps.map(app =>
         app.id === id ? { ...app, is_active: !currentStatus } : app
       ));
+      toast.success(currentStatus ? 'アプリを停止しました' : 'アプリを有効化しました');
     } catch (error) {
       console.error('Error toggling status:', error);
-      alert('ステータス変更に失敗しました');
+      toast.error('ステータス変更に失敗しました');
     }
   }
 
@@ -86,9 +89,11 @@ export default function TwitterAppsPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('ログインが必要です');
+        toast.error('ログインが必要です');
         return;
       }
+
+      const loadingToast = toast.loading('OAuth接続を開始しています...');
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/twitter-oauth-start`,
@@ -106,10 +111,13 @@ export default function TwitterAppsPage() {
       }
 
       const { authUrl } = await response.json();
+      toast.success('OAuth接続ページに移動します', { id: loadingToast });
       window.location.href = authUrl;
-    } catch (error) {
+    } catch (error: any) {
       console.error('OAuth error:', error);
-      alert('OAuth接続に失敗しました');
+      toast.error('OAuth接続に失敗しました', {
+        description: error.message,
+      });
     }
   }
 

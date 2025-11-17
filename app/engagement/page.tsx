@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, Zap, TrendingUp } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import EngagementRuleCard from '@/components/engagement/EngagementRuleCard';
 import EngagementRuleForm from '@/components/engagement/EngagementRuleForm';
 import EngagementHistory from '@/components/engagement/EngagementHistory';
@@ -79,9 +80,10 @@ export default function EngagementPage() {
       if (error) throw error;
 
       setRules(rules.filter(rule => rule.id !== id));
+      toast.success('ルールを削除しました');
     } catch (error) {
       console.error('Error deleting rule:', error);
-      alert('削除に失敗しました');
+      toast.error('削除に失敗しました');
     }
   }
 
@@ -97,9 +99,10 @@ export default function EngagementPage() {
       setRules(rules.map(rule =>
         rule.id === id ? { ...rule, is_active: !currentStatus } : rule
       ));
+      toast.success(currentStatus ? 'ルールを停止しました' : 'ルールを有効化しました');
     } catch (error) {
       console.error('Error toggling status:', error);
-      alert('ステータス変更に失敗しました');
+      toast.error('ステータス変更に失敗しました');
     }
   }
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, Repeat, PlayCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import LoopCard from '@/components/loops/LoopCard';
 import LoopForm from '@/components/loops/LoopForm';
 import LoopExecutionLogs from '@/components/loops/LoopExecutionLogs';
@@ -73,9 +74,10 @@ export default function LoopsPage() {
       if (error) throw error;
 
       setLoops(loops.filter(loop => loop.id !== id));
+      toast.success('ループを削除しました');
     } catch (error) {
       console.error('Error deleting loop:', error);
-      alert('削除に失敗しました');
+      toast.error('削除に失敗しました');
     }
   }
 
@@ -91,9 +93,10 @@ export default function LoopsPage() {
       setLoops(loops.map(loop =>
         loop.id === id ? { ...loop, is_active: !currentStatus } : loop
       ));
+      toast.success(currentStatus ? 'ループを停止しました' : 'ループを有効化しました');
     } catch (error) {
       console.error('Error toggling status:', error);
-      alert('ステータス変更に失敗しました');
+      toast.error('ステータス変更に失敗しました');
     }
   }
 
@@ -109,9 +112,13 @@ export default function LoopsPage() {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('ログインが必要です');
+        toast.error('ログインが必要です');
         return;
       }
+
+      const loadingToast = toast.loading('ループを実行中...', {
+        description: 'しばらくお待ちください',
+      });
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/execute-loop`,
@@ -132,14 +139,25 @@ export default function LoopsPage() {
       setExecuteResult(result);
 
       if (result.ok && result.count > 0) {
+        toast.success('ループ実行完了', {
+          id: loadingToast,
+          description: `${result.count}件のループを実行しました`,
+        });
         loadLoops(); // Reload loops to update stats
+      } else {
+        toast.info('実行するループがありません', {
+          id: loadingToast,
+          description: '条件を満たすループが見つかりませんでした',
+        });
       }
 
       // Auto-clear result after 10 seconds
       setTimeout(() => setExecuteResult(null), 10000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Execute loop error:', error);
-      alert('ループ実行に失敗しました');
+      toast.error('ループ実行に失敗しました', {
+        description: error.message,
+      });
     } finally {
       setExecuting(false);
     }
