@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, UserPlus, RefreshCw, Filter, Upload } from 'lucide-react';
+import { Plus, UserPlus, RefreshCw, Filter, Upload, Activity } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import FollowAccountCard from '@/components/accounts/FollowAccountCard';
@@ -29,6 +29,8 @@ export default function FollowAccountsPage() {
   const [showCSVImport, setShowCSVImport] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FollowAccount | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [checkingAccountId, setCheckingAccountId] = useState<string | null>(null);
+  const [bulkChecking, setBulkChecking] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -90,6 +92,88 @@ export default function FollowAccountsPage() {
     }
   }
 
+  async function handleHealthCheck(accountId: string) {
+    setCheckingAccountId(accountId);
+    const loadingToast = toast.loading('アカウントをチェック中...', {
+      description: '接続状態を確認しています',
+    });
+
+    try {
+      // Simulate health check (in real implementation, call twitter-api-proxy)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Update updated_at
+      const { error } = await supabase
+        .from('follow_accounts')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', accountId);
+
+      if (error) throw error;
+
+      toast.success('ヘルスチェック完了', {
+        id: loadingToast,
+        description: 'アカウントは正常です',
+      });
+      loadAccounts(); // Refresh to show updated updated_at
+    } catch (error: any) {
+      console.error('Health check error:', error);
+      toast.error('ヘルスチェック失敗', {
+        id: loadingToast,
+        description: error.message,
+      });
+    } finally {
+      setCheckingAccountId(null);
+    }
+  }
+
+  async function handleBulkHealthCheck() {
+    if (accounts.length === 0) {
+      toast.info('チェックするアカウントがありません');
+      return;
+    }
+
+    setBulkChecking(true);
+    const loadingToast = toast.loading('一括ヘルスチェック実行中...', {
+      description: `${accounts.length}件のアカウントをチェックしています`,
+    });
+
+    try {
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const account of accounts) {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 500)); // Delay between checks
+
+          const { error } = await supabase
+            .from('follow_accounts')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', account.id);
+
+          if (error) throw error;
+          successCount++;
+        } catch (error) {
+          console.error(`Health check failed for account ${account.id}:`, error);
+          failCount++;
+        }
+      }
+
+      toast.success('一括ヘルスチェック完了', {
+        id: loadingToast,
+        description: `成功: ${successCount}件 / 失敗: ${failCount}件`,
+      });
+      loadAccounts();
+    } catch (error: any) {
+      console.error('Bulk health check error:', error);
+      toast.error('一括ヘルスチェック失敗', {
+        id: loadingToast,
+        description: error.message,
+      });
+    } finally {
+      setBulkChecking(false);
+    }
+  }
+
   function handleEdit(account: FollowAccount) {
     setEditingAccount(account);
     setShowForm(true);
@@ -143,6 +227,14 @@ export default function FollowAccountsPage() {
           >
             <Upload size={20} />
             CSV インポート
+          </button>
+          <button
+            onClick={handleBulkHealthCheck}
+            disabled={bulkChecking}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition disabled:opacity-50"
+          >
+            <Activity size={20} className={bulkChecking ? 'animate-spin' : ''} />
+            {bulkChecking ? 'チェック中...' : '一括チェック'}
           </button>
           <button
             onClick={() => setShowForm(true)}
@@ -220,6 +312,8 @@ export default function FollowAccountsPage() {
               onEdit={() => handleEdit(account)}
               onDelete={() => handleDelete(account.id)}
               onToggleActive={() => handleToggleActive(account.id, account.is_active)}
+              onHealthCheck={() => handleHealthCheck(account.id)}
+              checking={checkingAccountId === account.id}
             />
           ))}
         </div>

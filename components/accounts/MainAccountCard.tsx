@@ -1,6 +1,6 @@
 'use client';
 
-import { Edit2, Trash2, CheckCircle, XCircle, Shield, Users, UserPlus } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle, XCircle, Shield, Users, UserPlus, Activity } from 'lucide-react';
 
 interface MainAccount {
   id: string;
@@ -21,13 +21,17 @@ interface MainAccountCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onToggleActive: () => void;
+  onHealthCheck: () => void;
+  checking?: boolean;
 }
 
 export default function MainAccountCard({
   account,
   onEdit,
   onDelete,
-  onToggleActive
+  onToggleActive,
+  onHealthCheck,
+  checking = false
 }: MainAccountCardProps) {
   return (
     <div className={`bg-white rounded-lg shadow hover:shadow-lg transition-shadow ${
@@ -112,6 +116,16 @@ export default function MainAccountCard({
         </button>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={onHealthCheck}
+            disabled={checking}
+            className="flex items-center gap-1 px-3 py-2 text-sm rounded transition bg-orange-100 text-orange-700 hover:bg-orange-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="ヘルスチェック"
+          >
+            <Activity size={16} className={checking ? 'animate-spin' : ''} />
+            {checking ? 'チェック中...' : 'ヘルスチェック'}
+          </button>
+
           <button
             onClick={onEdit}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
