@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, RefreshCw, Users, Upload, Activity } from 'lucide-react';
+import { Plus, RefreshCw, Users, Upload, Activity, Shuffle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import SpamAccountCard from '@/components/accounts/SpamAccountCard';
@@ -34,6 +34,7 @@ export default function SpamAccountsPage() {
   const [editingAccount, setEditingAccount] = useState<SpamAccount | null>(null);
   const [checkingAccountId, setCheckingAccountId] = useState<string | null>(null);
   const [bulkChecking, setBulkChecking] = useState(false);
+  const [bulkAssigningProxies, setBulkAssigningProxies] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -176,6 +177,53 @@ export default function SpamAccountsPage() {
     }
   }
 
+  async function handleBulkAssignProxies() {
+    if (accounts.length === 0) {
+      toast.info('プロキシを割り当てるアカウントがありません');
+      return;
+    }
+
+    setBulkAssigningProxies(true);
+    const loadingToast = toast.loading('一括プロキシ割当中...', {
+      description: `${accounts.length}件のアカウントにプロキシを割り当てています`,
+    });
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('ログインが必要です');
+
+      const accountIds = accounts.map(acc => acc.id);
+
+      // Call bulk_assign_proxies function
+      const { data, error } = await supabase.rpc('bulk_assign_proxies', {
+        p_account_ids: accountIds,
+        p_account_table: 'spam_accounts',
+        p_user_id: user.id,
+        p_strategy: 'round_robin',
+      });
+
+      if (error) throw error;
+
+      const successCount = data?.filter((r: any) => r.success).length || 0;
+      const failCount = data?.length - successCount || 0;
+
+      toast.success('一括プロキシ割当完了', {
+        id: loadingToast,
+        description: `成功: ${successCount}件 / 失敗: ${failCount}件`,
+      });
+
+      loadAccounts();
+    } catch (error: any) {
+      console.error('Bulk proxy assignment error:', error);
+      toast.error('一括プロキシ割当失敗', {
+        id: loadingToast,
+        description: error.message,
+      });
+    } finally {
+      setBulkAssigningProxies(false);
+    }
+  }
+
   function handleEdit(account: SpamAccount) {
     setEditingAccount(account);
     setShowForm(true);
@@ -238,6 +286,15 @@ export default function SpamAccountsPage() {
           >
             <Activity size={20} className={bulkChecking ? 'animate-spin' : ''} />
             {bulkChecking ? 'チェック中...' : '一括チェック'}
+          </button>
+          <button
+            onClick={handleBulkAssignProxies}
+            disabled={bulkAssigningProxies || accounts.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+            title="全アカウントにプロキシを自動割当"
+          >
+            <Shuffle size={20} className={bulkAssigningProxies ? 'animate-spin' : ''} />
+            {bulkAssigningProxies ? '割当中...' : 'プロキシ一括割当'}
           </button>
           <button
             onClick={() => setShowBulkImport(true)}

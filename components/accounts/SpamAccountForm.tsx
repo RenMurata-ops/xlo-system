@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Shuffle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 
 interface SpamAccount {
   id: string;
@@ -32,6 +33,7 @@ export default function SpamAccountForm({ account, onClose }: SpamAccountFormPro
   });
   const [proxies, setProxies] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [assigningProxy, setAssigningProxy] = useState(false);
   const [error, setError] = useState('');
   const supabase = createClient();
 
@@ -62,6 +64,43 @@ export default function SpamAccountForm({ account, onClose }: SpamAccountFormPro
       setProxies(data || []);
     } catch (error) {
       console.error('Error loading proxies:', error);
+    }
+  }
+
+  async function handleAutoAssignProxy() {
+    setAssigningProxy(true);
+    const loadingToast = toast.loading('プロキシを自動割当中...', {
+      description: 'ラウンドロビン方式で選択しています',
+    });
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('ログインが必要です');
+
+      // Call the get_available_proxy function
+      const { data, error } = await supabase.rpc('get_available_proxy', {
+        p_user_id: user.id,
+        p_strategy: 'round_robin',
+      });
+
+      if (error) throw error;
+      if (!data) throw new Error('利用可能なプロキシがありません');
+
+      // Update form with selected proxy
+      setFormData({ ...formData, proxy_id: data.id });
+
+      toast.success('プロキシを割り当てました', {
+        id: loadingToast,
+        description: `${data.proxy_name} を選択しました`,
+      });
+    } catch (error: any) {
+      console.error('Auto-assign proxy error:', error);
+      toast.error('プロキシの割り当てに失敗しました', {
+        id: loadingToast,
+        description: error.message,
+      });
+    } finally {
+      setAssigningProxy(false);
     }
   }
 
@@ -171,18 +210,35 @@ export default function SpamAccountForm({ account, onClose }: SpamAccountFormPro
             <label className="block text-sm font-medium text-gray-700 mb-2">
               プロキシ
             </label>
-            <select
-              value={formData.proxy_id}
-              onChange={(e) => setFormData({ ...formData, proxy_id: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">プロキシなし</option>
-              {proxies.map(proxy => (
-                <option key={proxy.id} value={proxy.id}>
-                  {proxy.proxy_name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={formData.proxy_id}
+                onChange={(e) => setFormData({ ...formData, proxy_id: e.target.value })}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">プロキシなし</option>
+                {proxies.map(proxy => (
+                  <option key={proxy.id} value={proxy.id}>
+                    {proxy.proxy_name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleAutoAssignProxy}
+                disabled={assigningProxy || proxies.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+                title="ラウンドロビン方式で自動割当"
+              >
+                <Shuffle size={16} className={assigningProxy ? 'animate-spin' : ''} />
+                自動割当
+              </button>
+            </div>
+            {proxies.length === 0 && (
+              <p className="mt-1 text-sm text-gray-500">
+                プロキシを追加してください
+              </p>
+            )}
           </div>
 
           <div>
