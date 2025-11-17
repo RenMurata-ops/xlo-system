@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, RefreshCw, FileText, Filter } from 'lucide-react';
+import { Plus, RefreshCw, FileText, Filter, BarChart3 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import TemplateCard from '@/components/templates/TemplateCard';
 import TemplateForm from '@/components/templates/TemplateForm';
 import TemplatePreview from '@/components/templates/TemplatePreview';
+import TemplateStats from '@/components/templates/TemplateStats';
 
 interface Template {
   id: string;
@@ -29,6 +30,7 @@ export default function TemplatesPage() {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
+  const [showStats, setShowStats] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
   const supabase = createClient();
 
@@ -148,6 +150,13 @@ export default function TemplatesPage() {
             更新
           </button>
           <button
+            onClick={() => setShowStats(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            <BarChart3 size={20} />
+            統計
+          </button>
+          <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
@@ -238,6 +247,13 @@ export default function TemplatesPage() {
         <TemplatePreview
           template={previewTemplate}
           onClose={() => setShowPreview(false)}
+        />
+      )}
+
+      {showStats && (
+        <TemplateStats
+          templates={templates}
+          onClose={() => setShowStats(false)}
         />
       )}
     </div>
