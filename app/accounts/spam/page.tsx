@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import SpamAccountCard from '@/components/accounts/SpamAccountCard';
 import SpamAccountForm from '@/components/accounts/SpamAccountForm';
 import SpamAccountBulkImport from '@/components/accounts/SpamAccountBulkImport';
+import CSVImportModal from '@/components/accounts/CSVImportModal';
 
 interface SpamAccount {
   id: string;
@@ -29,6 +30,7 @@ export default function SpamAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showCSVImport, setShowCSVImport] = useState(false);
   const [editingAccount, setEditingAccount] = useState<SpamAccount | null>(null);
   const supabase = createClient();
 
@@ -139,6 +141,13 @@ export default function SpamAccountsPage() {
             更新
           </button>
           <button
+            onClick={() => setShowCSVImport(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            <Upload size={20} />
+            CSV インポート
+          </button>
+          <button
             onClick={() => setShowBulkImport(true)}
             className="flex items-center gap-2 px-4 py-2 text-blue-700 bg-blue-50 border border-blue-300 rounded-lg hover:bg-blue-100 transition"
           >
@@ -224,6 +233,14 @@ export default function SpamAccountsPage() {
       {showBulkImport && (
         <SpamAccountBulkImport
           onClose={handleBulkImportClose}
+        />
+      )}
+
+      {showCSVImport && (
+        <CSVImportModal
+          accountType="spam"
+          onClose={() => setShowCSVImport(false)}
+          onImportComplete={loadAccounts}
         />
       )}
     </div>

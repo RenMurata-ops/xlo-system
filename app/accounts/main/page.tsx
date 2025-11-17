@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Users, RefreshCw } from 'lucide-react';
+import { Plus, Users, RefreshCw, Upload } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import MainAccountCard from '@/components/accounts/MainAccountCard';
 import MainAccountForm from '@/components/accounts/MainAccountForm';
+import CSVImportModal from '@/components/accounts/CSVImportModal';
 
 interface MainAccount {
   id: string;
@@ -25,6 +26,7 @@ export default function MainAccountsPage() {
   const [accounts, setAccounts] = useState<MainAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showCSVImport, setShowCSVImport] = useState(false);
   const [editingAccount, setEditingAccount] = useState<MainAccount | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const supabase = createClient();
@@ -142,6 +144,13 @@ export default function MainAccountsPage() {
             更新
           </button>
           <button
+            onClick={() => setShowCSVImport(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            <Upload size={20} />
+            CSV インポート
+          </button>
+          <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
@@ -207,6 +216,14 @@ export default function MainAccountsPage() {
         <MainAccountForm
           account={editingAccount}
           onClose={handleFormClose}
+        />
+      )}
+
+      {showCSVImport && (
+        <CSVImportModal
+          accountType="main"
+          onClose={() => setShowCSVImport(false)}
+          onImportComplete={loadAccounts}
         />
       )}
     </div>

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, UserPlus, RefreshCw, Filter } from 'lucide-react';
+import { Plus, UserPlus, RefreshCw, Filter, Upload } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import FollowAccountCard from '@/components/accounts/FollowAccountCard';
 import FollowAccountForm from '@/components/accounts/FollowAccountForm';
+import CSVImportModal from '@/components/accounts/CSVImportModal';
 
 interface FollowAccount {
   id: string;
@@ -25,6 +26,7 @@ export default function FollowAccountsPage() {
   const [accounts, setAccounts] = useState<FollowAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showCSVImport, setShowCSVImport] = useState(false);
   const [editingAccount, setEditingAccount] = useState<FollowAccount | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const supabase = createClient();
@@ -136,6 +138,13 @@ export default function FollowAccountsPage() {
             更新
           </button>
           <button
+            onClick={() => setShowCSVImport(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            <Upload size={20} />
+            CSV インポート
+          </button>
+          <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
@@ -220,6 +229,14 @@ export default function FollowAccountsPage() {
         <FollowAccountForm
           account={editingAccount}
           onClose={handleFormClose}
+        />
+      )}
+
+      {showCSVImport && (
+        <CSVImportModal
+          accountType="follow"
+          onClose={() => setShowCSVImport(false)}
+          onImportComplete={loadAccounts}
         />
       )}
     </div>
