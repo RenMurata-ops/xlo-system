@@ -19,8 +19,8 @@ interface Loop {
   created_at: string;
   updated_at: string;
   template_names?: string;
-  monitor_account_handle?: string;
-  target_value?: string;
+  monitor_account_handle: string | null;
+  target_value: string | null;
 }
 
 interface LoopCardProps {

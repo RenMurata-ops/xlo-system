@@ -13,7 +13,7 @@ interface EngagementRule {
   is_active: boolean;
   search_type: 'keyword' | 'url' | 'user' | 'hashtag';
   search_query: string;
-  action_type: 'like' | 'reply' | 'retweet' | 'follow' | 'quote';
+  action_types: ('like' | 'reply' | 'retweet' | 'follow' | 'quote')[];
   reply_template_id: string | null;
   min_followers: number;
   max_followers: number | null;
@@ -187,10 +187,12 @@ export default function EngagementRuleCard({
               }`}>
                 {rule.is_active ? 'アクティブ' : '停止中'}
               </span>
-              <div className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                {getActionIcon(rule.action_type)}
-                <span>{getActionLabel(rule.action_type)}</span>
-              </div>
+              {rule.action_types && rule.action_types.length > 0 && rule.action_types.map((actionType, idx) => (
+                <div key={idx} className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                  {getActionIcon(actionType)}
+                  <span>{getActionLabel(actionType)}</span>
+                </div>
+              ))}
             </div>
           </div>
           {rule.is_active ? (

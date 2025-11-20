@@ -11,14 +11,22 @@ import LoopExecutionLogs from '@/components/loops/LoopExecutionLogs';
 interface Loop {
   id: string;
   loop_name: string;
+  loop_type: 'post' | 'reply' | 'cta';
   description: string | null;
   is_active: boolean;
+  template_ids: string[] | null;
+  selection_mode: 'random' | 'sequential';
   execution_interval_hours: number;
   execution_interval_minutes: number | null;
   min_accounts: number;
   max_accounts: number;
   executor_account_ids: string[] | null;
   allowed_account_tags: string[] | null;
+  target_type: 'search' | 'account_url' | 'tweet_url' | null;
+  target_value: string | null;
+  execution_count: number;
+  monitor_account_handle: string | null;
+  last_processed_tweet_id: string | null;
   reply_template_id: string | null;
   reply_delay_min_minutes: number | null;
   reply_delay_max_minutes: number | null;
@@ -31,6 +39,7 @@ interface Loop {
   created_at: string;
   updated_at: string;
   template_name?: string;
+  template_names?: string;
 }
 
 export default function LoopsPage() {

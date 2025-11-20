@@ -12,8 +12,8 @@ interface EngagementRule {
   is_active: boolean;
   search_type: 'keyword' | 'url' | 'user' | 'hashtag';
   search_query: string;
-  action_type: 'like' | 'reply' | 'retweet' | 'follow'; // Keep for backward compatibility
-  action_types: ('like' | 'reply' | 'retweet' | 'follow')[] | null;
+  action_type?: 'like' | 'reply' | 'retweet' | 'follow' | 'quote'; // Keep for backward compatibility
+  action_types: ('like' | 'reply' | 'retweet' | 'follow' | 'quote')[];
   reply_template_id: string | null;
   min_followers: number;
   max_followers: number | null;
@@ -49,7 +49,7 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
     description: '',
     search_type: 'keyword' as 'keyword' | 'url' | 'user' | 'hashtag',
     search_query: '',
-    action_types: ['like'] as ('like' | 'reply' | 'retweet' | 'follow')[],
+    action_types: ['like'] as ('like' | 'reply' | 'retweet' | 'follow' | 'quote')[],
     reply_template_id: '',
     min_followers: 0,
     max_followers: '',

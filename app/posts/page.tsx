@@ -341,7 +341,7 @@ export default function PostsPage() {
             )}
           </button>
           <button
-            onClick={loadPosts}
+            onClick={() => loadPosts()}
             disabled={refreshing}
             className="flex items-center gap-2 px-4 py-2 text-gray-300 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >

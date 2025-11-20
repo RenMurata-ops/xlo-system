@@ -16,7 +16,7 @@ interface EngagementRule {
   is_active: boolean;
   search_type: 'keyword' | 'url' | 'user' | 'hashtag';
   search_query: string;
-  action_type: 'like' | 'reply' | 'retweet' | 'follow' | 'quote';
+  action_types: ('like' | 'reply' | 'retweet' | 'follow' | 'quote')[];
   reply_template_id: string | null;
   min_followers: number;
   max_followers: number | null;
