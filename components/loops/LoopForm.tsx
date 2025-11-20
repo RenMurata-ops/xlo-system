@@ -35,7 +35,7 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
     execution_interval_minutes: 60,
     min_accounts: 1,
     max_accounts: 3,
-    executor_account_ids: '',
+    executor_account_ids: [] as string[],
     allowed_account_tags: '',
     reply_delay_min_minutes: 5,
     reply_delay_max_minutes: 15,
@@ -44,11 +44,13 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
     tags: '',
     is_active: true,
   });
+  const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const supabase = createClient();
 
   useEffect(() => {
+    loadAccounts();
     if (loop) {
       setFormData({
         loop_name: loop.loop_name,
@@ -56,7 +58,7 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
         execution_interval_minutes: loop.execution_interval_minutes || (loop.execution_interval_hours * 60),
         min_accounts: loop.min_accounts,
         max_accounts: loop.max_accounts,
-        executor_account_ids: loop.executor_account_ids ? loop.executor_account_ids.join(', ') : '',
+        executor_account_ids: loop.executor_account_ids || [],
         allowed_account_tags: loop.allowed_account_tags ? loop.allowed_account_tags.join(', ') : '',
         reply_delay_min_minutes: loop.reply_delay_min_minutes || 5,
         reply_delay_max_minutes: loop.reply_delay_max_minutes || 15,
@@ -68,6 +70,44 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
     }
   }, [loop]);
 
+  async function loadAccounts() {
+    try {
+      const { data, error } = await supabase
+        .from('main_accounts')
+        .select('id, handle, name, is_active')
+        .eq('is_active', true)
+        .order('handle');
+
+      if (error) throw error;
+      setAccounts(data || []);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+    }
+  }
+
+  const toggleAccountSelection = (accountId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      executor_account_ids: prev.executor_account_ids.includes(accountId)
+        ? prev.executor_account_ids.filter(id => id !== accountId)
+        : [...prev.executor_account_ids, accountId]
+    }));
+  };
+
+  const selectAllAccounts = () => {
+    setFormData(prev => ({
+      ...prev,
+      executor_account_ids: accounts.map(a => a.id)
+    }));
+  };
+
+  const deselectAllAccounts = () => {
+    setFormData(prev => ({
+      ...prev,
+      executor_account_ids: []
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -76,11 +116,6 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('ログインが必要です');
-
-      const executorAccountIds = formData.executor_account_ids
-        .split(',')
-        .map(id => id.trim())
-        .filter(id => id.length > 0);
 
       const allowedAccountTags = formData.allowed_account_tags
         .split(',')
@@ -98,7 +133,7 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
         execution_interval_minutes: formData.execution_interval_minutes,
         min_accounts: formData.min_accounts,
         max_accounts: formData.max_accounts,
-        executor_account_ids: executorAccountIds.length > 0 ? executorAccountIds : null,
+        executor_account_ids: formData.executor_account_ids.length > 0 ? formData.executor_account_ids : null,
         allowed_account_tags: allowedAccountTags.length > 0 ? allowedAccountTags : null,
         reply_delay_min_minutes: formData.reply_delay_min_minutes,
         reply_delay_max_minutes: formData.reply_delay_max_minutes,
@@ -229,16 +264,58 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              実行アカウントID（カンマ区切り）
-            </label>
-            <textarea
-              rows={2}
-              value={formData.executor_account_ids}
-              onChange={(e) => setFormData({ ...formData, executor_account_ids: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-              placeholder="account_id_1, account_id_2"
-            />
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                実行アカウント ({formData.executor_account_ids.length}件選択中)
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={selectAllAccounts}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  すべて選択
+                </button>
+                <button
+                  type="button"
+                  onClick={deselectAllAccounts}
+                  className="text-xs text-gray-600 hover:text-gray-700 font-medium"
+                >
+                  選択解除
+                </button>
+              </div>
+            </div>
+            <div className="border border-gray-300 rounded-lg p-4 max-h-48 overflow-y-auto bg-gray-50">
+              {accounts.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  有効なアカウントがありません
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {accounts.map((account) => (
+                    <label
+                      key={account.id}
+                      className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.executor_account_ids.includes(account.id)}
+                        onChange={() => toggleAccountSelection(account.id)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-900">
+                        @{account.handle}
+                      </span>
+                      {account.name && (
+                        <span className="text-xs text-gray-500">
+                          ({account.name})
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
