@@ -8,6 +8,7 @@ import QuickActions from '@/components/dashboard/QuickActions';
 import RateLimitMonitor from '@/components/dashboard/RateLimitMonitor';
 import LoopLockMonitor from '@/components/dashboard/LoopLockMonitor';
 import DuplicateAttemptsMonitor from '@/components/dashboard/DuplicateAttemptsMonitor';
+import TokenStatusCard from '@/components/dashboard/TokenStatusCard';
 
 interface DashboardStats {
   totalTwitterApps: number;
@@ -228,6 +229,11 @@ export default function DashboardPage() {
               color="green"
             />
           </div>
+        </div>
+
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-white mb-4">トークン管理</h2>
+          <TokenStatusCard />
         </div>
 
         <div className="mb-8">

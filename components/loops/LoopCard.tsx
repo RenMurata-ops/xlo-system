@@ -8,6 +8,7 @@ interface Loop {
   description: string | null;
   is_active: boolean;
   execution_interval_hours: number;
+  execution_interval_minutes: number | null;
   min_accounts: number;
   max_accounts: number;
   last_executed_at: string | null;
@@ -88,7 +89,11 @@ export default function LoopCard({
             <span>実行間隔</span>
           </div>
           <span className="font-semibold text-gray-900">
-            {loop.execution_interval_hours}時間
+            {loop.execution_interval_minutes
+              ? (loop.execution_interval_minutes >= 60
+                  ? `${Math.floor(loop.execution_interval_minutes / 60)}時間${loop.execution_interval_minutes % 60 > 0 ? `${loop.execution_interval_minutes % 60}分` : ''}`
+                  : `${loop.execution_interval_minutes}分`)
+              : `${loop.execution_interval_hours}時間`}
           </span>
         </div>
 

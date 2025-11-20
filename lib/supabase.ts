@@ -1,6 +1,8 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from './supabase/client'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Re-export createClient
+export { createClient }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// For backward compatibility - note: this creates instance at module load time
+// Components should prefer using createClient() for proper singleton behavior
+export const supabase = createClient()

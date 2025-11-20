@@ -3,6 +3,31 @@
 -- Purpose: Automatic proxy assignment with round-robin and random strategies
 
 -- ============================================================================
+-- Step 1: Add missing columns to proxies table
+-- ============================================================================
+
+-- Add proxy_name column if not exists
+ALTER TABLE proxies ADD COLUMN IF NOT EXISTS proxy_name TEXT;
+
+-- Add host column if not exists
+ALTER TABLE proxies ADD COLUMN IF NOT EXISTS host TEXT;
+
+-- Add port column if not exists
+ALTER TABLE proxies ADD COLUMN IF NOT EXISTS port INTEGER;
+
+-- Add failure_count column if not exists
+ALTER TABLE proxies ADD COLUMN IF NOT EXISTS failure_count INTEGER DEFAULT 0;
+
+-- Add last_used_at column if not exists
+ALTER TABLE proxies ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMPTZ;
+
+-- Add assigned_accounts_count column if not exists
+ALTER TABLE proxies ADD COLUMN IF NOT EXISTS assigned_accounts_count INTEGER DEFAULT 0;
+
+-- Add notes column if not exists
+ALTER TABLE proxies ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- ============================================================================
 -- Function: get_available_proxy
 -- Purpose: Get an available proxy based on strategy (round_robin or random)
 -- ============================================================================
@@ -84,12 +109,8 @@ BEGIN
     UPDATE spam_accounts
     SET proxy_id = v_proxy_id
     WHERE id = p_account_id AND user_id = p_user_id;
-  ELSIF p_account_table = 'follow_accounts' THEN
-    UPDATE follow_accounts
-    SET proxy_id = v_proxy_id
-    WHERE id = p_account_id AND user_id = p_user_id;
   ELSE
-    RAISE EXCEPTION 'Invalid account table: %', p_account_table;
+    RAISE EXCEPTION 'Invalid account table: % (only spam_accounts supported)', p_account_table;
   END IF;
 
   RETURN v_proxy_id;
@@ -163,32 +184,16 @@ CREATE OR REPLACE VIEW v_proxy_assignment_status AS
 SELECT
   'spam' as account_type,
   sa.id as account_id,
-  sa.username,
+  sa.handle as account_handle,
   sa.proxy_id,
-  p.server as proxy_server,
+  p.host as proxy_host,
   p.port as proxy_port,
   p.country as proxy_country,
   p.is_active as proxy_is_active,
   p.failure_count as proxy_failure_count,
   p.last_used_at as proxy_last_used
 FROM spam_accounts sa
-LEFT JOIN proxies p ON sa.proxy_id = p.id
-
-UNION ALL
-
-SELECT
-  'follow' as account_type,
-  fa.id as account_id,
-  fa.username,
-  fa.proxy_id,
-  p.server as proxy_server,
-  p.port as proxy_port,
-  p.country as proxy_country,
-  p.is_active as proxy_is_active,
-  p.failure_count as proxy_failure_count,
-  p.last_used_at as proxy_last_used
-FROM follow_accounts fa
-LEFT JOIN proxies p ON fa.proxy_id = p.id;
+LEFT JOIN proxies p ON sa.proxy_id = p.id;
 
 -- ============================================================================
 -- Comments

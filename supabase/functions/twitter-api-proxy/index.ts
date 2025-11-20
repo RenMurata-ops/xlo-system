@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 interface ProxyRequest {
   user_id?: string;
@@ -13,18 +13,30 @@ interface ProxyRequest {
 
 async function refreshAccessToken(
   supabase: any,
-  tokenRecord: any
+  tokenRecord: any,
+  userId: string
 ): Promise<string | null> {
   try {
-    const twitterClientId = Deno.env.get('TWITTER_CLIENT_ID')!;
-    const twitterClientSecret = Deno.env.get('TWITTER_CLIENT_SECRET')!;
+    // Get Twitter App credentials from database
+    const { data: twitterApp, error: appError } = await supabase
+      .from('twitter_apps')
+      .select('client_id, client_secret')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+
+    if (appError || !twitterApp || !twitterApp.client_id || !twitterApp.client_secret) {
+      console.error('Failed to get Twitter App credentials:', appError);
+      return null;
+    }
 
     const refreshParams = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: tokenRecord.refresh_token,
     });
 
-    const basicAuth = btoa(`${twitterClientId}:${twitterClientSecret}`);
+    const basicAuth = btoa(`${twitterApp.client_id}:${twitterApp.client_secret}`);
 
     const response = await fetch('https://api.twitter.com/2/oauth2/token', {
       method: 'POST',
@@ -130,7 +142,7 @@ serve(async (req) => {
 
     if (expiresAt < fiveMinutesFromNow && tokenRecord.refresh_token) {
       console.log('Token expiring soon, refreshing...');
-      const newToken = await refreshAccessToken(supabase, tokenRecord);
+      const newToken = await refreshAccessToken(supabase, tokenRecord, user.id);
       if (newToken) {
         accessToken = newToken;
       }

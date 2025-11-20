@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 interface LoopExecutionResult {
   loop_id: string;
@@ -157,9 +157,18 @@ async function callTwitterApi(
 }
 
 function calcNextRun(loop: any): string {
-  const intervalHours = loop.execution_interval_hours || 24;
+  // Use minutes if available, otherwise fall back to hours for backwards compatibility
+  // Check for explicit null/undefined, not falsy (to allow 0 as valid value)
+  let intervalMinutes: number;
+  if (loop.execution_interval_minutes != null && loop.execution_interval_minutes > 0) {
+    intervalMinutes = loop.execution_interval_minutes;
+  } else if (loop.execution_interval_hours != null && loop.execution_interval_hours > 0) {
+    intervalMinutes = loop.execution_interval_hours * 60;
+  } else {
+    intervalMinutes = 60; // Default to 1 hour
+  }
   const next = new Date();
-  next.setHours(next.getHours() + intervalHours);
+  next.setMinutes(next.getMinutes() + intervalMinutes);
   return next.toISOString();
 }
 

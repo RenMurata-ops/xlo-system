@@ -14,6 +14,7 @@ interface Loop {
   description: string | null;
   is_active: boolean;
   execution_interval_hours: number;
+  execution_interval_minutes: number | null;
   min_accounts: number;
   max_accounts: number;
   executor_account_ids: string[] | null;

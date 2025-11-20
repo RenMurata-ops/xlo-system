@@ -1,11 +1,11 @@
 'use client';
 
-import { Edit2, Trash2, CheckCircle, XCircle, AlertTriangle, Clock, TrendingUp, Activity } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle, XCircle, AlertTriangle, Clock, TrendingUp, Activity, Link as LinkIcon, Check } from 'lucide-react';
 
 interface SpamAccount {
   id: string;
-  account_handle: string;
-  account_name: string | null;
+  handle: string;
+  name: string | null;
   proxy_id: string | null;
   is_active: boolean;
   last_used_at: string | null;
@@ -24,7 +24,11 @@ interface SpamAccountCardProps {
   onDelete: () => void;
   onToggleActive: () => void;
   onHealthCheck: () => void;
+  onConnect: () => void;
+  hasToken: boolean;
+  tokenExpired?: boolean;
   checking?: boolean;
+  connecting?: boolean;
 }
 
 export default function SpamAccountCard({
@@ -33,7 +37,11 @@ export default function SpamAccountCard({
   onDelete,
   onToggleActive,
   onHealthCheck,
-  checking = false
+  onConnect,
+  hasToken,
+  tokenExpired = false,
+  checking = false,
+  connecting = false
 }: SpamAccountCardProps) {
   const getBanStatusColor = (status: string) => {
     switch (status) {
@@ -73,11 +81,11 @@ export default function SpamAccountCard({
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-lg font-semibold text-gray-900">
-                @{account.account_handle}
+                @{account.handle}
               </h3>
             </div>
-            {account.account_name && (
-              <p className="text-sm text-gray-600 mb-2">{account.account_name}</p>
+            {account.name && (
+              <p className="text-sm text-gray-600 mb-2">{account.name}</p>
             )}
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`px-2 py-1 rounded text-xs font-medium ${
@@ -91,6 +99,24 @@ export default function SpamAccountCard({
                 {getBanStatusIcon(account.ban_status)}
                 {getBanStatusLabel(account.ban_status)}
               </span>
+              {hasToken ? (
+                tokenExpired ? (
+                  <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800 flex items-center gap-1">
+                    <LinkIcon size={12} />
+                    トークン期限切れ
+                  </span>
+                ) : (
+                  <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 flex items-center gap-1">
+                    <LinkIcon size={12} />
+                    X連携済み
+                  </span>
+                )
+              ) : (
+                <span className="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 flex items-center gap-1">
+                  <LinkIcon size={12} />
+                  未連携
+                </span>
+              )}
               {account.proxy_id && (
                 <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
                   プロキシ設定済み
@@ -169,6 +195,23 @@ export default function SpamAccountCard({
         </button>
 
         <div className="flex items-center gap-2">
+          {hasToken && !tokenExpired ? (
+            <div className="flex items-center gap-2 px-3 py-2 text-sm rounded bg-green-100 text-green-700">
+              <Check size={16} />
+              連携完了
+            </div>
+          ) : (
+            <button
+              onClick={onConnect}
+              disabled={connecting}
+              className="flex items-center gap-2 px-3 py-2 text-sm rounded transition bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              aria-label={tokenExpired ? 'X再連携' : 'X連携'}
+            >
+              <LinkIcon size={16} className={connecting ? 'animate-spin' : ''} />
+              {connecting ? '連携中...' : (tokenExpired ? '再連携' : 'X連携')}
+            </button>
+          )}
+
           <button
             onClick={onHealthCheck}
             disabled={checking}

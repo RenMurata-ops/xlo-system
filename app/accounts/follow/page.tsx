@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, UserPlus, RefreshCw, Filter, Upload, Activity } from 'lucide-react';
+import { Plus, UserPlus, RefreshCw, Filter, Upload, Activity, AlertCircle, Link as LinkIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import FollowAccountCard from '@/components/accounts/FollowAccountCard';
@@ -22,6 +22,12 @@ interface FollowAccount {
   updated_at: string;
 }
 
+interface AccountToken {
+  account_id: string;
+  expires_at: string;
+  is_active: boolean;
+}
+
 export default function FollowAccountsPage() {
   const [accounts, setAccounts] = useState<FollowAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,10 +37,24 @@ export default function FollowAccountsPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [checkingAccountId, setCheckingAccountId] = useState<string | null>(null);
   const [bulkChecking, setBulkChecking] = useState(false);
+  const [connectingAccountId, setConnectingAccountId] = useState<string | null>(null);
+  const [accountTokens, setAccountTokens] = useState<Map<string, AccountToken>>(new Map());
+  const [twitterApps, setTwitterApps] = useState<any[]>([]);
+  const [selectedTwitterAppId, setSelectedTwitterAppId] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
     loadAccounts();
+    loadAccountTokens();
+    loadTwitterApps();
+
+    // Check for OAuth success
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('connected') === '1') {
+      toast.success('Twitterアカウントの接続に成功しました！');
+      loadAccountTokens();
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   async function loadAccounts() {
@@ -51,6 +71,96 @@ export default function FollowAccountsPage() {
       console.error('Error loading accounts:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAccountTokens() {
+    try {
+      const { data, error } = await supabase
+        .from('account_tokens')
+        .select('account_id, expires_at, is_active')
+        .eq('account_type', 'follow');
+
+      if (error) throw error;
+
+      const tokenMap = new Map<string, AccountToken>();
+      data?.forEach((token: AccountToken) => {
+        tokenMap.set(token.account_id, token);
+      });
+      setAccountTokens(tokenMap);
+    } catch (error) {
+      console.error('Error loading account tokens:', error);
+    }
+  }
+
+  async function loadTwitterApps() {
+    try {
+      const { data, error } = await supabase
+        .from('twitter_apps')
+        .select('id, app_name, is_active')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setTwitterApps(data || []);
+      if (data && data.length > 0 && !selectedTwitterAppId) {
+        setSelectedTwitterAppId(data[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading Twitter apps:', error);
+    }
+  }
+
+  async function handleOAuthConnect(accountId: string) {
+    if (!selectedTwitterAppId) {
+      toast.error('X Appを選択してください。先にX Appを登録する必要があります。');
+      return;
+    }
+
+    setConnectingAccountId(accountId);
+
+    try {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+
+      if (refreshError) {
+        toast.error(`セッションの更新に失敗: ${refreshError.message}`);
+        return;
+      }
+
+      const session = refreshData?.session;
+      if (!session) {
+        toast.error('ログインが必要です');
+        return;
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/twitter-oauth-start`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            account_id: accountId,
+            account_type: 'follow',
+            twitter_app_id: selectedTwitterAppId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'OAuth開始に失敗しました');
+      }
+
+      const { authUrl } = await response.json();
+      window.location.href = authUrl;
+    } catch (error: any) {
+      console.error('OAuth connect error:', error);
+      toast.error(error.message || 'X連携の開始に失敗しました');
+      setConnectingAccountId(null);
     }
   }
 
@@ -246,6 +356,43 @@ export default function FollowAccountsPage() {
         </div>
       </div>
 
+      {twitterApps.length > 0 && (
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <LinkIcon size={20} className="text-blue-600" />
+              <div>
+                <div className="text-sm font-medium text-blue-900">X連携に使用するApp</div>
+                <div className="text-xs text-blue-700">OAuth認証に使用するX Appを選択してください</div>
+              </div>
+            </div>
+            <select
+              value={selectedTwitterAppId || ''}
+              onChange={(e) => setSelectedTwitterAppId(e.target.value)}
+              className="px-3 py-2 border border-blue-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {twitterApps.map((app) => (
+                <option key={app.id} value={app.id}>
+                  {app.app_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {twitterApps.length === 0 && (
+        <div className="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+          <div className="flex items-center gap-3">
+            <AlertCircle size={20} className="text-yellow-600" />
+            <div>
+              <div className="text-sm font-medium text-yellow-900">X Appが未登録です</div>
+              <div className="text-xs text-yellow-700">X連携を行うには、まず設定画面でX Appを登録してください</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="text-sm text-gray-600 mb-1">総アカウント数</div>
@@ -305,17 +452,27 @@ export default function FollowAccountsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAccounts.map(account => (
-            <FollowAccountCard
-              key={account.id}
-              account={account}
-              onEdit={() => handleEdit(account)}
-              onDelete={() => handleDelete(account.id)}
-              onToggleActive={() => handleToggleActive(account.id, account.is_active)}
-              onHealthCheck={() => handleHealthCheck(account.id)}
-              checking={checkingAccountId === account.id}
-            />
-          ))}
+          {filteredAccounts.map(account => {
+            const token = accountTokens.get(account.id);
+            const hasToken = !!token;
+            const tokenExpired = token ? new Date(token.expires_at) < new Date() : false;
+
+            return (
+              <FollowAccountCard
+                key={account.id}
+                account={account}
+                onEdit={() => handleEdit(account)}
+                onDelete={() => handleDelete(account.id)}
+                onToggleActive={() => handleToggleActive(account.id, account.is_active)}
+                onHealthCheck={() => handleHealthCheck(account.id)}
+                onConnect={() => handleOAuthConnect(account.id)}
+                hasToken={hasToken}
+                tokenExpired={tokenExpired}
+                checking={checkingAccountId === account.id}
+                connecting={connectingAccountId === account.id}
+              />
+            );
+          })}
         </div>
       )}
 

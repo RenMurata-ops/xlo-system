@@ -40,8 +40,8 @@ export default function SpamAccountBulkImport({ onClose }: SpamAccountBulkImport
       const accounts = lines.map(line => {
         const parts = line.split(',').map(p => p.trim());
         return {
-          account_handle: parts[0].replace('@', ''),
-          account_name: parts[1] || null,
+          handle: parts[0].replace('@', ''),
+          name: parts[1] || null,
           proxy_id: null,
           ban_status: 'unknown' as const,
           tags: parts[2] ? parts[2].split('|').map(t => t.trim()) : null,
@@ -67,7 +67,7 @@ export default function SpamAccountBulkImport({ onClose }: SpamAccountBulkImport
           successCount++;
         } catch (err: any) {
           failedCount++;
-          errors.push(`@${account.account_handle}: ${err.message}`);
+          errors.push(`@${account.handle}: ${err.message}`);
         }
       }
 

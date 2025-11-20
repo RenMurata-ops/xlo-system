@@ -25,6 +25,16 @@ interface EngagementRule {
   max_actions_per_execution: number;
   execution_interval_hours: number;
   daily_limit: number;
+  // Advanced search filters
+  search_since: string | null;
+  search_until: string | null;
+  min_retweets: number | null;
+  max_retweets: number | null;
+  min_faves: number | null;
+  max_faves: number | null;
+  min_replies: number | null;
+  max_replies: number | null;
+  has_engagement: boolean;
 }
 
 interface EngagementRuleFormProps {
@@ -52,6 +62,16 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
     execution_interval_hours: 1,
     daily_limit: 100,
     is_active: true,
+    // Advanced X search filters
+    search_since: '',
+    search_until: '',
+    min_retweets: 0,
+    max_retweets: '',
+    min_faves: 0,
+    max_faves: '',
+    min_replies: 0,
+    max_replies: '',
+    has_engagement: false,
   });
   const [accounts, setAccounts] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -82,6 +102,16 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
         execution_interval_hours: rule.execution_interval_hours,
         daily_limit: rule.daily_limit,
         is_active: rule.is_active,
+        // Advanced search filters
+        search_since: rule.search_since || '',
+        search_until: rule.search_until || '',
+        min_retweets: rule.min_retweets || 0,
+        max_retweets: rule.max_retweets?.toString() || '',
+        min_faves: rule.min_faves || 0,
+        max_faves: rule.max_faves?.toString() || '',
+        min_replies: rule.min_replies || 0,
+        max_replies: rule.max_replies?.toString() || '',
+        has_engagement: rule.has_engagement || false,
       });
     }
   }, [rule]);
@@ -168,6 +198,16 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
         daily_limit: formData.daily_limit,
         is_active: formData.is_active,
         user_id: user.id,
+        // Advanced search filters
+        search_since: formData.search_since || null,
+        search_until: formData.search_until || null,
+        min_retweets: formData.min_retweets,
+        max_retweets: formData.max_retweets ? parseInt(formData.max_retweets) : null,
+        min_faves: formData.min_faves,
+        max_faves: formData.max_faves ? parseInt(formData.max_faves) : null,
+        min_replies: formData.min_replies,
+        max_replies: formData.max_replies ? parseInt(formData.max_replies) : null,
+        has_engagement: formData.has_engagement,
       };
 
       if (rule) {
@@ -286,6 +326,137 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
                   }
                 />
               </div>
+            </div>
+          </div>
+
+          {/* 高度な検索フィルター */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 pb-2 border-b">高度な検索フィルター（X検索コマンド）</h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  開始日 (since:)
+                </label>
+                <input
+                  type="date"
+                  value={formData.search_since}
+                  onChange={(e) => setFormData({ ...formData, search_since: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="mt-1 text-xs text-gray-500">この日以降の投稿を検索</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  終了日 (until:)
+                </label>
+                <input
+                  type="date"
+                  value={formData.search_until}
+                  onChange={(e) => setFormData({ ...formData, search_until: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="mt-1 text-xs text-gray-500">この日より前の投稿を検索</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  最小RT数 (min_retweets:)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.min_retweets}
+                  onChange={(e) => setFormData({ ...formData, min_retweets: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  最小いいね数 (min_faves:)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.min_faves}
+                  onChange={(e) => setFormData({ ...formData, min_faves: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  最小リプライ数 (min_replies:)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.min_replies}
+                  onChange={(e) => setFormData({ ...formData, min_replies: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  最大RT数 (上限)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.max_retweets}
+                  onChange={(e) => setFormData({ ...formData, max_retweets: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="無制限"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  最大いいね数 (上限)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.max_faves}
+                  onChange={(e) => setFormData({ ...formData, max_faves: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="無制限"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  最大リプライ数 (上限)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.max_replies}
+                  onChange={(e) => setFormData({ ...formData, max_replies: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="無制限"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.has_engagement}
+                  onChange={(e) => setFormData({ ...formData, has_engagement: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">エンゲージメントがある投稿のみ (filter:has_engagement)</span>
+              </label>
+              <p className="mt-1 text-xs text-gray-500 ml-6">いいね・RT・リプライのいずれかがある投稿のみを対象</p>
             </div>
           </div>
 

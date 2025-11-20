@@ -24,10 +24,10 @@ export default function LoginPage() {
     try {
       await signIn(email, password)
       toast.success('ログインしました')
+      router.refresh()
       router.push('/dashboard')
     } catch (error: any) {
       toast.error(error.message || 'ログインに失敗しました')
-    } finally {
       setLoading(false)
     }
   }

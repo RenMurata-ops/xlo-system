@@ -10,6 +10,7 @@ interface Loop {
   description: string | null;
   is_active: boolean;
   execution_interval_hours: number;
+  execution_interval_minutes: number | null;
   min_accounts: number;
   max_accounts: number;
   executor_account_ids: string[] | null;
@@ -31,7 +32,7 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
   const [formData, setFormData] = useState({
     loop_name: '',
     description: '',
-    execution_interval_hours: 24,
+    execution_interval_minutes: 60,
     min_accounts: 1,
     max_accounts: 3,
     executor_account_ids: '',
@@ -52,7 +53,7 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
       setFormData({
         loop_name: loop.loop_name,
         description: loop.description || '',
-        execution_interval_hours: loop.execution_interval_hours,
+        execution_interval_minutes: loop.execution_interval_minutes || (loop.execution_interval_hours * 60),
         min_accounts: loop.min_accounts,
         max_accounts: loop.max_accounts,
         executor_account_ids: loop.executor_account_ids ? loop.executor_account_ids.join(', ') : '',
@@ -94,7 +95,7 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
       const payload = {
         loop_name: formData.loop_name,
         description: formData.description || null,
-        execution_interval_hours: formData.execution_interval_hours,
+        execution_interval_minutes: formData.execution_interval_minutes,
         min_accounts: formData.min_accounts,
         max_accounts: formData.max_accounts,
         executor_account_ids: executorAccountIds.length > 0 ? executorAccountIds : null,
@@ -182,19 +183,19 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              実行間隔（時間） *
+              実行間隔（分） *
             </label>
             <input
               type="number"
               min="1"
-              max="168"
+              max="10080"
               required
-              value={formData.execution_interval_hours}
-              onChange={(e) => setFormData({ ...formData, execution_interval_hours: parseInt(e.target.value) || 24 })}
+              value={formData.execution_interval_minutes}
+              onChange={(e) => setFormData({ ...formData, execution_interval_minutes: parseInt(e.target.value) || 60 })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <p className="mt-1 text-sm text-gray-500">
-              1時間〜168時間（7日）の範囲で設定してください
+              1分〜10080分（7日）の範囲で設定してください
             </p>
           </div>
 

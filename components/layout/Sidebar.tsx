@@ -13,7 +13,8 @@ import {
   Repeat,
   MessageSquare,
   Globe,
-  ChevronRight
+  ChevronRight,
+  Target
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -45,6 +46,7 @@ export default function Sidebar() {
       title: '自動化',
       items: [
         { title: 'エンゲージメント', href: '/engagement', icon: <Zap size={18} /> },
+        { title: 'ターゲット', href: '/engagement/targeted', icon: <Target size={18} /> },
         { title: 'ループ', href: '/loops', icon: <Repeat size={18} /> },
       ],
     },

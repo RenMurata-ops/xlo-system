@@ -6,8 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 
 interface MainAccount {
   id: string;
-  account_handle: string;
-  account_name: string | null;
+  handle: string;
+  name: string | null;
   follower_count: number | null;
   following_count: number | null;
   is_active: boolean;
@@ -22,8 +22,8 @@ interface MainAccountFormProps {
 
 export default function MainAccountForm({ account, onClose }: MainAccountFormProps) {
   const [formData, setFormData] = useState({
-    account_handle: '',
-    account_name: '',
+    handle: '',
+    name: '',
     follower_count: 0,
     following_count: 0,
     is_active: true,
@@ -37,8 +37,8 @@ export default function MainAccountForm({ account, onClose }: MainAccountFormPro
   useEffect(() => {
     if (account) {
       setFormData({
-        account_handle: account.account_handle,
-        account_name: account.account_name || '',
+        handle: account.handle,
+        name: account.name || '',
         follower_count: account.follower_count || 0,
         following_count: account.following_count || 0,
         is_active: account.is_active,
@@ -63,8 +63,8 @@ export default function MainAccountForm({ account, onClose }: MainAccountFormPro
         .filter(tag => tag.length > 0);
 
       const payload = {
-        account_handle: formData.account_handle.replace('@', ''),
-        account_name: formData.account_name || null,
+        handle: formData.handle.replace('@', ''),
+        name: formData.name || null,
         follower_count: formData.follower_count || null,
         following_count: formData.following_count || null,
         is_active: formData.is_active,
@@ -129,8 +129,8 @@ export default function MainAccountForm({ account, onClose }: MainAccountFormPro
               <input
                 type="text"
                 required
-                value={formData.account_handle}
-                onChange={(e) => setFormData({ ...formData, account_handle: e.target.value })}
+                value={formData.handle}
+                onChange={(e) => setFormData({ ...formData, handle: e.target.value })}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="username"
               />
@@ -143,8 +143,8 @@ export default function MainAccountForm({ account, onClose }: MainAccountFormPro
             </label>
             <input
               type="text"
-              value={formData.account_name}
-              onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="表示名"
             />

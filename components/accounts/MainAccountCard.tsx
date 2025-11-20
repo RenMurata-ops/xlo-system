@@ -1,11 +1,11 @@
 'use client';
 
-import { Edit2, Trash2, CheckCircle, XCircle, Shield, Users, UserPlus, Activity } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle, XCircle, Shield, Users, UserPlus, Activity, Link as LinkIcon, Check } from 'lucide-react';
 
 interface MainAccount {
   id: string;
-  account_handle: string;
-  account_name: string | null;
+  handle: string;
+  name: string | null;
   follower_count: number | null;
   following_count: number | null;
   is_active: boolean;
@@ -22,7 +22,11 @@ interface MainAccountCardProps {
   onDelete: () => void;
   onToggleActive: () => void;
   onHealthCheck: () => void;
+  onConnect: () => void;
+  hasToken: boolean;
+  tokenExpired?: boolean;
   checking?: boolean;
+  connecting?: boolean;
 }
 
 export default function MainAccountCard({
@@ -31,7 +35,11 @@ export default function MainAccountCard({
   onDelete,
   onToggleActive,
   onHealthCheck,
-  checking = false
+  onConnect,
+  hasToken,
+  tokenExpired = false,
+  checking = false,
+  connecting = false
 }: MainAccountCardProps) {
   return (
     <div className={`bg-white rounded-lg shadow hover:shadow-lg transition-shadow ${
@@ -42,14 +50,14 @@ export default function MainAccountCard({
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-lg font-semibold text-gray-900">
-                @{account.account_handle}
+                @{account.handle}
               </h3>
               {account.is_verified && (
                 <Shield size={16} className="text-blue-500" aria-label="認証済み" />
               )}
             </div>
-            {account.account_name && (
-              <p className="text-sm text-gray-600">{account.account_name}</p>
+            {account.name && (
+              <p className="text-sm text-gray-600">{account.name}</p>
             )}
           </div>
           {account.is_active ? (
@@ -59,7 +67,7 @@ export default function MainAccountCard({
           )}
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm flex-wrap">
           <span className={`px-2 py-1 rounded ${
             account.is_active
               ? 'bg-green-100 text-green-800'
@@ -67,6 +75,24 @@ export default function MainAccountCard({
           }`}>
             {account.is_active ? 'アクティブ' : '非アクティブ'}
           </span>
+          {hasToken ? (
+            tokenExpired ? (
+              <span className="px-2 py-1 rounded bg-yellow-100 text-yellow-800 flex items-center gap-1">
+                <LinkIcon size={12} />
+                トークン期限切れ
+              </span>
+            ) : (
+              <span className="px-2 py-1 rounded bg-green-100 text-green-800 flex items-center gap-1">
+                <LinkIcon size={12} />
+                X連携済み
+              </span>
+            )
+          ) : (
+            <span className="px-2 py-1 rounded bg-red-100 text-red-800 flex items-center gap-1">
+              <LinkIcon size={12} />
+              未連携
+            </span>
+          )}
           {account.tags && account.tags.length > 0 && (
             <span className="px-2 py-1 rounded bg-blue-100 text-blue-800">
               {account.tags[0]}
@@ -116,6 +142,23 @@ export default function MainAccountCard({
         </button>
 
         <div className="flex items-center gap-2">
+          {hasToken && !tokenExpired ? (
+            <div className="flex items-center gap-2 px-3 py-2 text-sm rounded bg-green-100 text-green-700">
+              <Check size={16} />
+              連携完了
+            </div>
+          ) : (
+            <button
+              onClick={onConnect}
+              disabled={connecting}
+              className="flex items-center gap-2 px-3 py-2 text-sm rounded transition bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              aria-label={tokenExpired ? 'X再連携' : 'X連携'}
+            >
+              <LinkIcon size={16} className={connecting ? 'animate-spin' : ''} />
+              {connecting ? '連携中...' : (tokenExpired ? '再連携' : 'X連携')}
+            </button>
+          )}
+
           <button
             onClick={onHealthCheck}
             disabled={checking}

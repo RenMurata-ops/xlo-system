@@ -7,8 +7,8 @@ import { toast } from 'sonner';
 
 interface SpamAccount {
   id: string;
-  account_handle: string;
-  account_name: string | null;
+  handle: string;
+  name: string | null;
   proxy_id: string | null;
   is_active: boolean;
   ban_status: 'active' | 'shadowban' | 'suspended' | 'unknown';
@@ -23,8 +23,8 @@ interface SpamAccountFormProps {
 
 export default function SpamAccountForm({ account, onClose }: SpamAccountFormProps) {
   const [formData, setFormData] = useState({
-    account_handle: '',
-    account_name: '',
+    handle: '',
+    name: '',
     proxy_id: '',
     ban_status: 'active' as 'active' | 'shadowban' | 'suspended' | 'unknown',
     tags: '',
@@ -41,8 +41,8 @@ export default function SpamAccountForm({ account, onClose }: SpamAccountFormPro
     loadProxies();
     if (account) {
       setFormData({
-        account_handle: account.account_handle,
-        account_name: account.account_name || '',
+        handle: account.handle,
+        name: account.name || '',
         proxy_id: account.proxy_id || '',
         ban_status: account.ban_status,
         tags: account.tags ? account.tags.join(', ') : '',
@@ -119,8 +119,8 @@ export default function SpamAccountForm({ account, onClose }: SpamAccountFormPro
         .filter(tag => tag.length > 0);
 
       const payload = {
-        account_handle: formData.account_handle.replace('@', ''),
-        account_name: formData.account_name || null,
+        handle: formData.handle.replace('@', ''),
+        name: formData.name || null,
         proxy_id: formData.proxy_id || null,
         ban_status: formData.ban_status,
         tags: tags.length > 0 ? tags : null,
@@ -185,8 +185,8 @@ export default function SpamAccountForm({ account, onClose }: SpamAccountFormPro
               <input
                 type="text"
                 required
-                value={formData.account_handle}
-                onChange={(e) => setFormData({ ...formData, account_handle: e.target.value })}
+                value={formData.handle}
+                onChange={(e) => setFormData({ ...formData, handle: e.target.value })}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="username"
               />
@@ -199,8 +199,8 @@ export default function SpamAccountForm({ account, onClose }: SpamAccountFormPro
             </label>
             <input
               type="text"
-              value={formData.account_name}
-              onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="表示名"
             />

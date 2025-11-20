@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Upload, Download, AlertCircle } from 'lucide-react';
+import { X, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -12,22 +12,21 @@ interface CSVImportModalProps {
 }
 
 interface ParsedAccount {
-  account_handle?: string;
-  account_name?: string;
-  username?: string;
-  password?: string;
-  email?: string;
-  proxy_id?: string;
-  tags?: string;
-  follower_count?: number;
-  following_count?: number;
+  screen: string;
+  password: string;
+  mail: string;
+  mailpw: string;
+  reg_number: string;
+  auth: string;
+  two_factor_url: string;
+  backup_codes: string;
 }
 
 export default function CSVImportModal({ onClose, onImportComplete, accountType }: CSVImportModalProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [importing, setImporting] = useState(false);
   const [preview, setPreview] = useState<ParsedAccount[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
   const supabase = createClient();
 
   const getTableName = () => {
@@ -38,272 +37,301 @@ export default function CSVImportModal({ onClose, onImportComplete, accountType 
     }
   };
 
-  const getTemplateCSV = () => {
-    switch (accountType) {
-      case 'main':
-        return `account_handle,account_name,tags
-@example1,Example User 1,"tag1,tag2"
-@example2,Example User 2,"tag3"`;
-      case 'spam':
-        return `username,password,email,proxy_id,tags
-spamuser1,password123,spam1@example.com,proxy-uuid-1,"tag1,tag2"
-spamuser2,password456,spam2@example.com,proxy-uuid-2,"tag3"`;
-      case 'follow':
-        return `username,password,email,tags
-followuser1,password789,follow1@example.com,"tag1"
-followuser2,passwordabc,follow2@example.com,"tag2,tag3"`;
+  const getHandleField = () => {
+    return accountType === 'follow' ? 'target_handle' : 'handle';
+  };
+
+  const getNameField = () => {
+    return accountType === 'follow' ? 'target_name' : 'name';
+  };
+
+  const parseCsv = (text: string): ParsedAccount[] => {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return [];
+
+    // Parse header - support both tab and comma
+    const delimiter = lines[0].includes('\t') ? '\t' : ',';
+    const headers = lines[0].split(delimiter).map(h => h.trim());
+
+    // Find column indices
+    const indices = {
+      screen: headers.findIndex(h => h === 'screen'),
+      password: headers.findIndex(h => h === 'password'),
+      mail: headers.findIndex(h => h === 'mail'),
+      mailpw: headers.findIndex(h => h === 'mailpw'),
+      reg_number: headers.findIndex(h => h === 'reg_number'),
+      auth: headers.findIndex(h => h === 'auth'),
+      two_factor_url: headers.findIndex(h => h === '二段階認証コード取得URL'),
+      backup_codes: headers.findIndex(h => h === 'バックアップコード'),
+    };
+
+    // Helper function for safe array access
+    const safeGet = (arr: string[], index: number): string => {
+      if (index < 0 || index >= arr.length) return '';
+      return arr[index] || '';
+    };
+
+    // Parse data rows
+    const accounts: ParsedAccount[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(delimiter).map(v => v.trim());
+      if (values.length < 2) continue;
+
+      accounts.push({
+        screen: safeGet(values, indices.screen),
+        password: safeGet(values, indices.password),
+        mail: safeGet(values, indices.mail),
+        mailpw: safeGet(values, indices.mailpw),
+        reg_number: safeGet(values, indices.reg_number),
+        auth: safeGet(values, indices.auth),
+        two_factor_url: safeGet(values, indices.two_factor_url),
+        backup_codes: safeGet(values, indices.backup_codes),
+      });
     }
-  };
 
-  const downloadTemplate = () => {
-    const csv = getTemplateCSV();
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${accountType}_accounts_template.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    toast.success('テンプレートをダウンロードしました');
-  };
-
-  const parseCSV = async (file: File): Promise<ParsedAccount[]> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const text = e.target?.result as string;
-          const lines = text.split('\n').filter(line => line.trim());
-
-          if (lines.length < 2) {
-            reject(new Error('CSVファイルが空です'));
-            return;
-          }
-
-          const headers = lines[0].split(',').map(h => h.trim());
-          const accounts: ParsedAccount[] = [];
-
-          for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',').map(v => v.trim());
-            const account: any = {};
-
-            headers.forEach((header, index) => {
-              const value = values[index];
-              if (value) {
-                if (header === 'tags') {
-                  account[header] = value.split('|').map(t => t.trim());
-                } else if (header === 'follower_count' || header === 'following_count') {
-                  account[header] = parseInt(value) || 0;
-                } else {
-                  account[header] = value;
-                }
-              }
-            });
-
-            accounts.push(account);
-          }
-
-          resolve(accounts);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
-      reader.readAsText(file);
-    });
+    return accounts.filter(a => a.screen);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
-    if (!selectedFile.name.endsWith('.csv')) {
-      toast.error('CSVファイルを選択してください');
-      return;
-    }
-
     setFile(selectedFile);
+    setResult(null);
 
     try {
-      const accounts = await parseCSV(selectedFile);
-      setPreview(accounts);
-      setShowPreview(true);
-      toast.success(`${accounts.length}件のアカウントを読み込みました`);
-    } catch (error: any) {
+      const text = await selectedFile.text();
+      const parsed = parseCsv(text);
+      setPreview(parsed);
+
+      if (parsed.length === 0) {
+        toast.error('有効なアカウントが見つかりません');
+      } else {
+        toast.success(`${parsed.length}件のアカウントを読み込みました`);
+      }
+    } catch (error) {
       console.error('CSV parse error:', error);
-      toast.error('CSVの解析に失敗しました', {
-        description: error.message,
-      });
-      setFile(null);
+      toast.error('CSVの解析に失敗しました');
     }
   };
 
   const handleImport = async () => {
-    if (!file || preview.length === 0) return;
+    if (preview.length === 0) return;
 
-    setImporting(true);
-    const loadingToast = toast.loading('インポート中...', {
-      description: `${preview.length}件のアカウントを処理しています`,
-    });
+    setLoading(true);
+    const errors: string[] = [];
+    let success = 0;
+    let failed = 0;
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('ログインが必要です');
 
       const tableName = getTableName();
-      const accountsWithUserId = preview.map(account => ({
-        ...account,
-        user_id: user.id,
-      }));
+      const handleField = getHandleField();
+      const nameField = getNameField();
 
-      const { data, error } = await supabase
-        .from(tableName)
-        .insert(accountsWithUserId)
-        .select();
+      for (const account of preview) {
+        try {
+          const insertData: any = {
+            user_id: user.id,
+            [handleField]: account.screen,
+            [nameField]: account.screen, // Use screen as default name
+            email: account.mail || null,
+            password: account.password || null,
+            mail_password: account.mailpw || null,
+            two_factor_url: account.two_factor_url || null,
+            backup_codes: account.backup_codes || null,
+            reg_number: account.reg_number || null,
+            auth_token: account.auth || null,
+            is_active: true,
+          };
 
-      if (error) throw error;
+          const { error } = await supabase
+            .from(tableName)
+            .insert(insertData);
 
-      toast.success('インポート完了', {
-        id: loadingToast,
-        description: `${data?.length || 0}件のアカウントを登録しました`,
-      });
+          if (error) {
+            if (error.code === '23505') {
+              errors.push(`${account.screen}: 既に存在します`);
+            } else {
+              errors.push(`${account.screen}: ${error.message}`);
+            }
+            failed++;
+          } else {
+            success++;
+          }
+        } catch (err: any) {
+          errors.push(`${account.screen}: ${err.message}`);
+          failed++;
+        }
+      }
 
-      onImportComplete();
-      onClose();
+      setResult({ success, failed, errors });
+
+      if (success > 0) {
+        toast.success(`${success}件のアカウントをインポートしました`);
+        onImportComplete();
+      }
+
+      if (failed > 0 && success === 0) {
+        toast.error('インポートに失敗しました');
+      }
     } catch (error: any) {
-      console.error('Import error:', error);
-      toast.error('インポートに失敗しました', {
-        id: loadingToast,
-        description: error.message,
-      });
+      toast.error(error.message || 'インポートに失敗しました');
     } finally {
-      setImporting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header */}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">
-            CSV一括インポート - {accountType === 'main' ? 'メインアカウント' : accountType === 'spam' ? 'スパムアカウント' : 'フォローアカウント'}
+            CSVインポート - {accountType === 'main' ? 'メイン' : accountType === 'spam' ? 'スパム' : 'フォロー'}アカウント
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition"
+            className="p-2 text-gray-400 hover:text-gray-600 transition"
           >
             <X size={24} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-          {/* Template Download */}
+        <div className="p-6 flex-1 overflow-y-auto">
+          {/* Format Info */}
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-start gap-3">
               <AlertCircle className="text-blue-600 mt-0.5" size={20} />
-              <div className="flex-1">
+              <div>
                 <h3 className="font-semibold text-blue-900 mb-2">CSVフォーマット</h3>
-                <p className="text-sm text-blue-800 mb-3">
-                  テンプレートをダウンロードして、正しい形式でデータを入力してください
+                <p className="text-sm text-blue-800">
+                  タブ区切りまたはカンマ区切りに対応
                 </p>
-                <button
-                  onClick={downloadTemplate}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
-                >
-                  <Download size={16} />
-                  テンプレートをダウンロード
-                </button>
+                <p className="text-xs text-blue-700 mt-1 font-mono">
+                  ヘッダー: screen, password, mail, mailpw, reg_number, auth, 二段階認証コード取得URL, バックアップコード
+                </p>
               </div>
             </div>
           </div>
 
           {/* File Upload */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              CSVファイルを選択
-            </label>
-            <div className="flex items-center gap-4">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-gray-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-lg file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100
-                  cursor-pointer"
-              />
-            </div>
-            {file && (
-              <p className="mt-2 text-sm text-gray-600">
-                選択されたファイル: {file.name}
+            <span className="block text-sm font-medium text-gray-700 mb-2">
+              CSVファイル
+            </span>
+            <label
+              htmlFor="csv-file-input"
+              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition block"
+            >
+              <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-sm text-gray-600">
+                {file ? file.name : 'クリックしてファイルを選択'}
               </p>
-            )}
+            </label>
+            <input
+              id="csv-file-input"
+              type="file"
+              accept=".csv,.txt,.tsv"
+              onChange={handleFileChange}
+              className="hidden"
+            />
           </div>
 
           {/* Preview */}
-          {showPreview && preview.length > 0 && (
+          {preview.length > 0 && (
             <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-3">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">
                 プレビュー ({preview.length}件)
               </h3>
               <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-60">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        {Object.keys(preview[0]).map((key) => (
-                          <th
-                            key={key}
-                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            {key}
-                          </th>
-                        ))}
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">screen</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">mail</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">password</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">2FA URL</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {preview.slice(0, 5).map((account, index) => (
-                        <tr key={index}>
-                          {Object.values(account).map((value, i) => (
-                            <td key={i} className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                              {Array.isArray(value) ? value.join(', ') : String(value)}
-                            </td>
-                          ))}
+                    <tbody className="divide-y divide-gray-200">
+                      {preview.slice(0, 10).map((account, i) => (
+                        <tr key={i} className="hover:bg-gray-50">
+                          <td className="px-4 py-2 text-sm text-gray-900">{account.screen}</td>
+                          <td className="px-4 py-2 text-sm text-gray-600 truncate max-w-[150px]">{account.mail}</td>
+                          <td className="px-4 py-2 text-sm text-gray-600">{'•'.repeat(Math.min(8, account.password.length))}</td>
+                          <td className="px-4 py-2 text-sm text-gray-600 truncate max-w-[200px]">{account.two_factor_url}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                {preview.length > 5 && (
-                  <div className="px-4 py-3 bg-gray-50 text-sm text-gray-600 text-center">
-                    他 {preview.length - 5} 件...
+                {preview.length > 10 && (
+                  <div className="px-4 py-2 bg-gray-50 text-sm text-gray-500">
+                    他 {preview.length - 10} 件...
                   </div>
                 )}
               </div>
             </div>
           )}
+
+          {/* Result */}
+          {result && (
+            <div className="mb-6">
+              <div className="flex items-center gap-4 mb-4">
+                {result.success > 0 && (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle size={20} />
+                    <span>成功: {result.success}件</span>
+                  </div>
+                )}
+                {result.failed > 0 && (
+                  <div className="flex items-center gap-2 text-red-600">
+                    <AlertCircle size={20} />
+                    <span>失敗: {result.failed}件</span>
+                  </div>
+                )}
+              </div>
+              {result.errors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-h-40 overflow-y-auto">
+                  <h4 className="text-sm font-medium text-red-800 mb-2">エラー詳細:</h4>
+                  <ul className="text-sm text-red-700 space-y-1">
+                    {result.errors.map((error, i) => (
+                      <li key={i}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            disabled={loading}
+            className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition disabled:opacity-50"
           >
-            キャンセル
+            閉じる
           </button>
           <button
             onClick={handleImport}
-            disabled={!file || preview.length === 0 || importing}
-            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || preview.length === 0}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
           >
-            <Upload size={20} />
-            {importing ? 'インポート中...' : `インポート (${preview.length}件)`}
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                インポート中...
+              </>
+            ) : (
+              <>
+                <FileText size={20} />
+                {preview.length}件をインポート
+              </>
+            )}
           </button>
         </div>
       </div>

@@ -38,6 +38,19 @@ interface EngagementRule {
   failure_count: number;
   created_at: string;
   updated_at: string;
+  // Auto-unfollow settings
+  auto_unfollow_enabled: boolean;
+  unfollow_delay_weeks: number;
+  // Advanced search filters
+  search_since: string | null;
+  search_until: string | null;
+  min_retweets: number | null;
+  max_retweets: number | null;
+  min_faves: number | null;
+  max_faves: number | null;
+  min_replies: number | null;
+  max_replies: number | null;
+  has_engagement: boolean;
 }
 
 export default function EngagementPage() {

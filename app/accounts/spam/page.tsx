@@ -11,8 +11,8 @@ import CSVImportModal from '@/components/accounts/CSVImportModal';
 
 interface SpamAccount {
   id: string;
-  account_handle: string;
-  account_name: string | null;
+  handle: string;
+  name: string | null;
   proxy_id: string | null;
   is_active: boolean;
   last_used_at: string | null;
@@ -25,6 +25,12 @@ interface SpamAccount {
   updated_at: string;
 }
 
+interface AccountToken {
+  account_id: string;
+  expires_at: string;
+  is_active: boolean;
+}
+
 export default function SpamAccountsPage() {
   const [accounts, setAccounts] = useState<SpamAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,10 +41,27 @@ export default function SpamAccountsPage() {
   const [checkingAccountId, setCheckingAccountId] = useState<string | null>(null);
   const [bulkChecking, setBulkChecking] = useState(false);
   const [bulkAssigningProxies, setBulkAssigningProxies] = useState(false);
+  const [connectingAccountId, setConnectingAccountId] = useState<string | null>(null);
+  const [accountTokens, setAccountTokens] = useState<Map<string, AccountToken>>(new Map());
+  const [twitterApps, setTwitterApps] = useState<any[]>([]);
+  const [selectedTwitterAppId, setSelectedTwitterAppId] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
     loadAccounts();
+    loadAccountTokens();
+    loadTwitterApps();
+
+    // Check for OAuth success
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('connected') === '1') {
+      const accountId = params.get('account_id');
+      toast.success('Twitterアカウントの接続に成功しました！');
+      // Reload tokens to reflect the new connection
+      loadAccountTokens();
+      // Remove query param from URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   async function loadAccounts() {
@@ -54,6 +77,102 @@ export default function SpamAccountsPage() {
       console.error('Error loading accounts:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAccountTokens() {
+    try {
+      const { data, error } = await supabase
+        .from('account_tokens')
+        .select('account_id, expires_at, is_active')
+        .eq('account_type', 'spam');
+
+      if (error) throw error;
+
+      const tokenMap = new Map<string, AccountToken>();
+      data?.forEach((token: AccountToken) => {
+        tokenMap.set(token.account_id, token);
+      });
+      setAccountTokens(tokenMap);
+    } catch (error) {
+      console.error('Error loading account tokens:', error);
+    }
+  }
+
+  async function loadTwitterApps() {
+    try {
+      const { data, error } = await supabase
+        .from('twitter_apps')
+        .select('id, app_name, is_active')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setTwitterApps(data || []);
+      // Set default selected app if available
+      if (data && data.length > 0 && !selectedTwitterAppId) {
+        setSelectedTwitterAppId(data[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading Twitter apps:', error);
+    }
+  }
+
+  async function handleOAuthConnect(accountId: string) {
+    // Check if Twitter App is selected
+    if (!selectedTwitterAppId) {
+      toast.error('X Appを選択してください。先にX Appを登録する必要があります。');
+      return;
+    }
+
+    setConnectingAccountId(accountId);
+
+    try {
+      // Force refresh the session to get a valid token
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+
+      if (refreshError) {
+        console.error('Session refresh error:', refreshError);
+        toast.error(`セッションの更新に失敗: ${refreshError.message}`);
+        return;
+      }
+
+      const session = refreshData?.session;
+      if (!session) {
+        toast.error('ログインが必要です');
+        return;
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/twitter-oauth-start`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            account_id: accountId,
+            account_type: 'spam',
+            twitter_app_id: selectedTwitterAppId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'OAuth開始に失敗しました');
+      }
+
+      const { authUrl } = await response.json();
+
+      // Redirect to Twitter OAuth
+      window.location.href = authUrl;
+    } catch (error: any) {
+      console.error('OAuth connect error:', error);
+      toast.error(error.message || 'X連携の開始に失敗しました');
+      setConnectingAccountId(null);
     }
   }
 
@@ -360,17 +479,27 @@ export default function SpamAccountsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {accounts.map(account => (
-            <SpamAccountCard
-              key={account.id}
-              account={account}
-              onEdit={() => handleEdit(account)}
-              onDelete={() => handleDelete(account.id)}
-              onToggleActive={() => handleToggleActive(account.id, account.is_active)}
-              onHealthCheck={() => handleHealthCheck(account.id)}
-              checking={checkingAccountId === account.id}
-            />
-          ))}
+          {accounts.map(account => {
+            const token = accountTokens.get(account.id);
+            const hasToken = !!token;
+            const tokenExpired = token ? new Date(token.expires_at) < new Date() : false;
+
+            return (
+              <SpamAccountCard
+                key={account.id}
+                account={account}
+                onEdit={() => handleEdit(account)}
+                onDelete={() => handleDelete(account.id)}
+                onToggleActive={() => handleToggleActive(account.id, account.is_active)}
+                onHealthCheck={() => handleHealthCheck(account.id)}
+                onConnect={() => handleOAuthConnect(account.id)}
+                hasToken={hasToken}
+                tokenExpired={tokenExpired}
+                checking={checkingAccountId === account.id}
+                connecting={connectingAccountId === account.id}
+              />
+            );
+          })}
         </div>
       )}
 
