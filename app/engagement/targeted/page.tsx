@@ -41,7 +41,6 @@ export default function TargetedEngagementPage() {
     enable_like: true,
     enable_retweet: false,
     enable_reply: false,
-    enable_quote: false,
     enable_follow: false,
     account_type: 'follow' as 'follow' | 'spam',
     use_all_accounts: true,
@@ -76,8 +75,8 @@ export default function TargetedEngagementPage() {
   async function loadAccounts() {
     try {
       const [followRes, spamRes] = await Promise.all([
-        supabase.from('follow_accounts').select('id, account_handle, account_name').eq('is_active', true),
-        supabase.from('spam_accounts').select('id, account_handle, account_name').eq('is_active', true),
+        supabase.from('follow_accounts').select('id, account_handle, account_name').eq('is_active', true).order('account_handle'),
+        supabase.from('spam_accounts').select('id, account_handle, account_name').eq('is_active', true).order('account_handle'),
       ]);
 
       if (followRes.data) setFollowAccounts(followRes.data);
@@ -86,6 +85,30 @@ export default function TargetedEngagementPage() {
       console.error('Error loading accounts:', error);
     }
   }
+
+  const toggleAccountSelection = (accountId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      selected_account_ids: prev.selected_account_ids.includes(accountId)
+        ? prev.selected_account_ids.filter(id => id !== accountId)
+        : [...prev.selected_account_ids, accountId]
+    }));
+  };
+
+  const selectAllAccounts = () => {
+    const accounts = formData.account_type === 'follow' ? followAccounts : spamAccounts;
+    setFormData(prev => ({
+      ...prev,
+      selected_account_ids: accounts.map(a => a.id)
+    }));
+  };
+
+  const deselectAllAccounts = () => {
+    setFormData(prev => ({
+      ...prev,
+      selected_account_ids: []
+    }));
+  };
 
   function extractTweetId(url: string): string | null {
     const match = url.match(/status\/(\d+)/);
@@ -112,7 +135,7 @@ export default function TargetedEngagementPage() {
         enable_like: formData.enable_like,
         enable_retweet: formData.enable_retweet,
         enable_reply: formData.enable_reply,
-        enable_quote: formData.enable_quote,
+        enable_quote: false,
         enable_follow: formData.enable_follow,
         account_type: formData.account_type,
         use_all_accounts: formData.use_all_accounts,
@@ -131,7 +154,6 @@ export default function TargetedEngagementPage() {
         enable_like: true,
         enable_retweet: false,
         enable_reply: false,
-        enable_quote: false,
         enable_follow: false,
         account_type: 'follow',
         use_all_accounts: true,
@@ -379,14 +401,99 @@ export default function TargetedEngagementPage() {
                     enable_like: e.target.value === 'spam',
                     enable_retweet: e.target.value === 'spam',
                     enable_reply: e.target.value === 'spam',
-                    enable_quote: e.target.value === 'spam',
                     enable_follow: true,
+                    selected_account_ids: [], // Clear selection when changing account type
                   })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 >
                   <option value="follow">フォローアカウント（フォローのみ）</option>
                   <option value="spam">スパムアカウント（全アクション可能）</option>
                 </select>
+              </div>
+
+              {/* Account Selection */}
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={formData.use_all_accounts}
+                      onChange={() => setFormData({ ...formData, use_all_accounts: true })}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">すべてのアカウントを使用</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={!formData.use_all_accounts}
+                      onChange={() => setFormData({ ...formData, use_all_accounts: false })}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">アカウントを選択</span>
+                  </label>
+                </div>
+
+                {!formData.use_all_accounts && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        実行アカウント
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={selectAllAccounts}
+                          className="text-xs text-blue-600 hover:text-blue-700"
+                        >
+                          すべて選択
+                        </button>
+                        <button
+                          type="button"
+                          onClick={deselectAllAccounts}
+                          className="text-xs text-gray-600 hover:text-gray-700"
+                        >
+                          選択解除
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="border border-gray-300 rounded-lg p-4 max-h-48 overflow-y-auto bg-gray-50">
+                      {(() => {
+                        const accounts = formData.account_type === 'follow' ? followAccounts : spamAccounts;
+                        return accounts.length === 0 ? (
+                          <p className="text-sm text-gray-500 text-center py-2">利用可能なアカウントがありません</p>
+                        ) : (
+                          accounts.map((account) => (
+                            <label
+                              key={account.id}
+                              className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.selected_account_ids.includes(account.id)}
+                                onChange={() => toggleAccountSelection(account.id)}
+                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                              <span className="text-sm font-medium text-gray-900">
+                                @{account.account_handle}
+                              </span>
+                              {account.account_name && (
+                                <span className="text-xs text-gray-500">({account.account_name})</span>
+                              )}
+                            </label>
+                          ))
+                        );
+                      })()}
+                    </div>
+
+                    <p className="mt-2 text-sm text-gray-500">
+                      {formData.selected_account_ids.length > 0
+                        ? `${formData.selected_account_ids.length}件のアカウントを選択中`
+                        : 'アカウントを選択してください'}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
@@ -423,15 +530,6 @@ export default function TargetedEngagementPage() {
                           className="rounded"
                         />
                         <span className="text-sm">リプライ</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={formData.enable_quote}
-                          onChange={(e) => setFormData({ ...formData, enable_quote: e.target.checked })}
-                          className="rounded"
-                        />
-                        <span className="text-sm">引用ツイート</span>
                       </label>
                     </>
                   )}

@@ -35,12 +35,12 @@ export default function PostPreview({ post, onClose }: PostPreviewProps) {
     try {
       const { data, error } = await supabase
         .from('main_accounts')
-        .select('account_handle')
+        .select('handle')
         .eq('id', post.account_id)
         .single();
 
       if (error) throw error;
-      setAccountHandle(data?.account_handle || 'Unknown');
+      setAccountHandle(data?.handle || 'Unknown');
     } catch (error) {
       console.error('Error loading account:', error);
       setAccountHandle('Unknown');

@@ -35,14 +35,16 @@ export default function PostsPage() {
   const [bulkResult, setBulkResult] = useState<any>(null);
   const [dryRun, setDryRun] = useState(false);
   const [postingNow, setPostingNow] = useState<Record<string, boolean>>({});
+  const [refreshing, setRefreshing] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
-    loadPosts();
+    loadPosts(true);
   }, []);
 
-  async function loadPosts() {
+  async function loadPosts(isInitialLoad = false) {
     try {
+      setRefreshing(true);
       const { data, error } = await supabase
         .from('posts')
         .select('*')
@@ -50,10 +52,17 @@ export default function PostsPage() {
 
       if (error) throw error;
       setPosts(data || []);
+      if (!isInitialLoad) {
+        toast.success('投稿一覧を更新しました');
+      }
     } catch (error) {
       console.error('Error loading posts:', error);
+      if (!isInitialLoad) {
+        toast.error('更新に失敗しました');
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -333,10 +342,11 @@ export default function PostsPage() {
           </button>
           <button
             onClick={loadPosts}
-            className="flex items-center gap-2 px-4 py-2 text-gray-300 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition"
+            disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2 text-gray-300 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <RefreshCw size={20} />
-            更新
+            <RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? '更新中...' : '更新'}
           </button>
           <button
             onClick={() => setShowForm(true)}

@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 interface ProxyRequest {
-  user_id?: string;
+  user_id?: string; // For service role requests
   account_id?: string;
   x_user_id?: string;
   endpoint: string;
@@ -93,32 +93,55 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: {
-        headers: { Authorization: authHeader },
-      },
-    });
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      throw new Error('Unauthorized');
+    // Check if request is from service role (background job) or user
+    const isServiceRole = authHeader.includes(supabaseServiceKey);
+
+    let supabase;
+    let userId: string | null = null;
+
+    if (isServiceRole) {
+      // Service role request - use service key without user auth
+      supabase = createClient(supabaseUrl, supabaseServiceKey);
+    } else {
+      // User request - require authentication
+      supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      });
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('Unauthorized');
+      }
+      userId = user.id;
     }
 
     const requestData: ProxyRequest = await req.json();
-    const { endpoint, method, params, body, x_user_id, account_id } = requestData;
+    const { endpoint, method, params, body, x_user_id, account_id, user_id } = requestData;
 
     if (!endpoint || !method) {
       throw new Error('Missing endpoint or method');
+    }
+
+    // Use user_id from request body if available (for service role requests)
+    if (!userId && user_id) {
+      userId = user_id;
     }
 
     // Find valid access token
     let query = supabase
       .from('account_tokens')
       .select('*')
-      .eq('user_id', user.id)
       .eq('token_type', 'oauth2')
       .eq('is_active', true);
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
 
     if (x_user_id) {
       query = query.eq('x_user_id', x_user_id);
@@ -140,9 +163,9 @@ serve(async (req) => {
     const now = new Date();
     const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
 
-    if (expiresAt < fiveMinutesFromNow && tokenRecord.refresh_token) {
+    if (expiresAt < fiveMinutesFromNow && tokenRecord.refresh_token && userId) {
       console.log('Token expiring soon, refreshing...');
-      const newToken = await refreshAccessToken(supabase, tokenRecord, user.id);
+      const newToken = await refreshAccessToken(supabase, tokenRecord, userId);
       if (newToken) {
         accessToken = newToken;
       }
@@ -181,13 +204,13 @@ serve(async (req) => {
     const isLowRate = limit > 0 && (remaining / limit) < 0.2;
 
     // Record rate limit info
-    if (rateLimitLimit && rateLimitRemaining && rateLimitReset) {
+    if (rateLimitLimit && rateLimitRemaining && rateLimitReset && userId) {
       const resetDate = new Date(parseInt(rateLimitReset) * 1000);
 
       await supabase
         .from('rate_limits')
         .upsert({
-          user_id: user.id,
+          user_id: userId,
           endpoint,
           token_type: 'oauth2',
           limit_total: limit,

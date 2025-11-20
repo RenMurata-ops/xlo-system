@@ -1,10 +1,11 @@
 'use client';
 
-import { Edit2, Trash2, CheckCircle, XCircle, Repeat, Clock, FileText, PlayCircle } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle, XCircle, Repeat, Clock, FileText, PlayCircle, BarChart3 } from 'lucide-react';
 
 interface Loop {
   id: string;
   loop_name: string;
+  loop_type: 'post' | 'reply' | 'cta';
   description: string | null;
   is_active: boolean;
   execution_interval_hours: number;
@@ -17,6 +18,9 @@ interface Loop {
   tags: string[] | null;
   created_at: string;
   updated_at: string;
+  template_names?: string;
+  monitor_account_handle?: string;
+  target_value?: string;
 }
 
 interface LoopCardProps {
@@ -39,6 +43,21 @@ export default function LoopCard({
     ? Math.max(0, Math.floor((new Date(loop.next_run_at).getTime() - new Date().getTime()) / (1000 * 60)))
     : null;
 
+  const getLoopTypeDisplay = () => {
+    switch (loop.loop_type) {
+      case 'post':
+        return { icon: '📝', label: '投稿ループ', color: 'bg-blue-100 text-blue-800' };
+      case 'reply':
+        return { icon: '💬', label: 'リプライループ', color: 'bg-green-100 text-green-800' };
+      case 'cta':
+        return { icon: '🎯', label: 'CTAループ', color: 'bg-purple-100 text-purple-800' };
+      default:
+        return { icon: '📝', label: '投稿ループ', color: 'bg-blue-100 text-blue-800' };
+    }
+  };
+
+  const loopTypeDisplay = getLoopTypeDisplay();
+
   return (
     <div className={`bg-white rounded-lg shadow hover:shadow-lg transition-shadow ${
       !loop.is_active ? 'opacity-60' : ''
@@ -46,9 +65,14 @@ export default function LoopCard({
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {loop.loop_name}
-            </h3>
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {loop.loop_name}
+              </h3>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${loopTypeDisplay.color}`}>
+                {loopTypeDisplay.icon} {loopTypeDisplay.label}
+              </span>
+            </div>
             {loop.description && (
               <p className="text-sm text-gray-600 line-clamp-2 mb-2">
                 {loop.description}
@@ -107,9 +131,43 @@ export default function LoopCard({
           </span>
         </div>
 
+        {loop.template_names && (
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-gray-600">
+              <FileText size={16} />
+              <span>テンプレート</span>
+            </div>
+            <span className="font-semibold text-gray-900 truncate max-w-[150px]" title={loop.template_names}>
+              {loop.template_names}
+            </span>
+          </div>
+        )}
+
+        {loop.loop_type === 'cta' && loop.monitor_account_handle && (
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-gray-600">
+              <span>監視アカウント</span>
+            </div>
+            <span className="font-semibold text-gray-900">
+              @{loop.monitor_account_handle}
+            </span>
+          </div>
+        )}
+
+        {loop.loop_type === 'reply' && loop.target_value && (
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-gray-600">
+              <span>ターゲット</span>
+            </div>
+            <span className="font-semibold text-gray-900 truncate max-w-[150px]" title={loop.target_value}>
+              {loop.target_value}
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-2 text-gray-600">
-            <FileText size={16} />
+            <BarChart3 size={16} />
             <span>総投稿数</span>
           </div>
           <span className="font-semibold text-gray-900">

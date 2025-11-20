@@ -30,6 +30,7 @@ interface Loop {
   tags: string[] | null;
   created_at: string;
   updated_at: string;
+  template_name?: string;
 }
 
 export default function LoopsPage() {
@@ -55,7 +56,24 @@ export default function LoopsPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setLoops(data || []);
+
+      // Fetch template names for each loop
+      const loopsWithTemplates = await Promise.all(
+        (data || []).map(async (loop) => {
+          if (loop.template_ids && loop.template_ids.length > 0) {
+            const { data: templates } = await supabase
+              .from('post_templates')
+              .select('name')
+              .in('id', loop.template_ids);
+
+            const templateNames = templates?.map(t => t.name).join(', ') || `${loop.template_ids.length}件のテンプレート`;
+            return { ...loop, template_names: templateNames };
+          }
+          return loop;
+        })
+      );
+
+      setLoops(loopsWithTemplates);
     } catch (error) {
       console.error('Error loading loops:', error);
     } finally {

@@ -14,7 +14,8 @@ interface EngagementRule {
   name: string;
   search_type: 'keyword' | 'url' | 'user' | 'hashtag';
   search_query: string;
-  action_type: 'like' | 'reply' | 'retweet' | 'follow' | 'quote';
+  action_type: 'like' | 'reply' | 'retweet' | 'follow'; // Keep for backward compatibility
+  action_types: ('like' | 'reply' | 'retweet' | 'follow')[] | null;
   reply_template_id: string | null;
   min_followers: number;
   max_followers: number | null;
@@ -27,6 +28,16 @@ interface EngagementRule {
   max_actions_per_execution: number;
   daily_limit: number;
   actions_today: number;
+  // Advanced search filters
+  search_since: string | null;
+  search_until: string | null;
+  min_retweets: number | null;
+  max_retweets: number | null;
+  min_faves: number | null;
+  max_faves: number | null;
+  min_replies: number | null;
+  max_replies: number | null;
+  has_engagement: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -175,34 +186,49 @@ async function executeEngagementRule(sb: any, rule: EngagementRule, traceId: str
     // Step 4: Execute actions (limit to max_actions_per_execution)
     const targets = filtered.slice(0, rule.max_actions_per_execution);
 
+    // Get action types to execute (use new action_types or fall back to old action_type)
+    const actionTypes = rule.action_types && rule.action_types.length > 0
+      ? rule.action_types
+      : [rule.action_type];
+
     for (const target of targets) {
       // Select random executor account
       const executorAccount = executorAccounts[Math.floor(Math.random() * executorAccounts.length)];
 
-      try {
-        const actionResult = await executeAction(sb, rule, target, executorAccount, traceId);
+      // Execute all selected actions for this target
+      for (const actionType of actionTypes) {
+        try {
+          const actionResult = await executeAction(sb, rule, target, executorAccount, traceId, actionType);
 
-        if (actionResult.success) {
-          result.actions_succeeded++;
-          if (target.id_str) {
-            if (rule.action_type === 'follow') {
-              result.target_user_ids.push(target.id_str);
-            } else {
-              result.target_tweet_ids.push(target.id_str);
+          if (actionResult.success) {
+            result.actions_succeeded++;
+            if (target.id_str) {
+              if (actionType === 'follow') {
+                if (!result.target_user_ids.includes(target.id_str)) {
+                  result.target_user_ids.push(target.id_str);
+                }
+              } else {
+                if (!result.target_tweet_ids.includes(target.id_str)) {
+                  result.target_tweet_ids.push(target.id_str);
+                }
+              }
             }
+          } else {
+            result.actions_failed++;
           }
-        } else {
+
+          result.actions_attempted++;
+        } catch (actionError: any) {
+          console.error(`[${traceId}] Action ${actionType} failed:`, actionError);
           result.actions_failed++;
+          result.actions_attempted++;
         }
 
-        result.actions_attempted++;
-      } catch (actionError: any) {
-        console.error(`[${traceId}] Action failed:`, actionError);
-        result.actions_failed++;
-        result.actions_attempted++;
+        // Small delay between actions on same target
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      // Small delay to avoid rate limits
+      // Delay between targets to avoid rate limits
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
@@ -231,11 +257,40 @@ async function searchTwitter(sb: any, rule: EngagementRule, traceId: string) {
   let endpoint = '';
   let params: any = {};
 
+  // Build advanced search query modifiers
+  const buildAdvancedQuery = (baseQuery: string): string => {
+    let query = baseQuery;
+
+    // Date range filters
+    if (rule.search_since) {
+      query += ` since:${rule.search_since}`;
+    }
+    if (rule.search_until) {
+      query += ` until:${rule.search_until}`;
+    }
+
+    // Engagement filters
+    if (rule.min_retweets && rule.min_retweets > 0) {
+      query += ` min_retweets:${rule.min_retweets}`;
+    }
+    if (rule.min_faves && rule.min_faves > 0) {
+      query += ` min_faves:${rule.min_faves}`;
+    }
+    if (rule.min_replies && rule.min_replies > 0) {
+      query += ` min_replies:${rule.min_replies}`;
+    }
+    if (rule.has_engagement) {
+      query += ` has:engagement`;
+    }
+
+    return query.trim();
+  };
+
   switch (rule.search_type) {
     case 'keyword':
       endpoint = '/2/tweets/search/recent';
       params = {
-        query: rule.search_query,
+        query: buildAdvancedQuery(rule.search_query),
         max_results: 100,
         'tweet.fields': 'author_id,created_at,public_metrics',
         'user.fields': 'created_at,public_metrics,verified',
@@ -246,7 +301,7 @@ async function searchTwitter(sb: any, rule: EngagementRule, traceId: string) {
     case 'hashtag':
       endpoint = '/2/tweets/search/recent';
       params = {
-        query: `#${rule.search_query}`,
+        query: buildAdvancedQuery(`#${rule.search_query}`),
         max_results: 100,
         'tweet.fields': 'author_id,created_at,public_metrics',
         'user.fields': 'created_at,public_metrics,verified',
@@ -275,6 +330,7 @@ async function searchTwitter(sb: any, rule: EngagementRule, traceId: string) {
       endpoint: fullEndpoint,
       method: 'GET',
       x_user_id: null, // Use first available token
+      user_id: rule.user_id,
     },
   });
 
@@ -321,6 +377,14 @@ async function filterResults(results: any[], rule: EngagementRule) {
       }
     }
 
+    // Advanced engagement filters (max values - client-side filtering)
+    const metrics = item.public_metrics;
+    if (metrics) {
+      if (rule.max_retweets && metrics.retweet_count > rule.max_retweets) return false;
+      if (rule.max_faves && metrics.like_count > rule.max_faves) return false;
+      if (rule.max_replies && metrics.reply_count > rule.max_replies) return false;
+    }
+
     return true;
   });
 }
@@ -346,14 +410,21 @@ async function selectExecutorAccounts(sb: any, rule: EngagementRule) {
   return accounts || [];
 }
 
-async function executeAction(sb: any, rule: EngagementRule, target: any, executorAccount: any, traceId: string) {
-  console.log(`[${traceId}] Executing ${rule.action_type} on tweet ${target.id} with account ${executorAccount.x_user_id}`);
+async function executeAction(
+  sb: any,
+  rule: EngagementRule,
+  target: any,
+  executorAccount: any,
+  traceId: string,
+  actionType: 'like' | 'reply' | 'retweet' | 'follow'
+) {
+  console.log(`[${traceId}] Executing ${actionType} on tweet ${target.id} with account ${executorAccount.x_user_id}`);
 
   let endpoint = '';
   let method = 'POST';
   let body: any = {};
 
-  switch (rule.action_type) {
+  switch (actionType) {
     case 'like':
       endpoint = `/2/users/${executorAccount.x_user_id}/likes`;
       body = { tweet_id: target.id };
@@ -396,30 +467,8 @@ async function executeAction(sb: any, rule: EngagementRule, target: any, executo
       };
       break;
 
-    case 'quote':
-      // Similar to reply but with quote
-      if (!rule.reply_template_id) {
-        throw new Error('Quote action requires reply_template_id');
-      }
-
-      const { data: quoteTemplate } = await sb
-        .from('post_templates')
-        .select('*, post_template_items(*)')
-        .eq('id', rule.reply_template_id)
-        .single();
-
-      const quoteItems = quoteTemplate?.post_template_items || [];
-      const quoteText = selectWeightedItem(quoteItems)?.content || quoteTemplate?.content;
-
-      endpoint = '/2/tweets';
-      body = {
-        text: quoteText,
-        quote_tweet_id: target.id,
-      };
-      break;
-
     default:
-      throw new Error(`Unsupported action type: ${rule.action_type}`);
+      throw new Error(`Unsupported action type: ${actionType}`);
   }
 
   // Execute via twitter-api-proxy
@@ -429,6 +478,7 @@ async function executeAction(sb: any, rule: EngagementRule, target: any, executo
       method,
       body,
       x_user_id: executorAccount.x_user_id,
+      user_id: rule.user_id,
     },
   });
 
@@ -436,8 +486,8 @@ async function executeAction(sb: any, rule: EngagementRule, target: any, executo
     throw new Error(`Action failed: ${proxyError?.message || 'Unknown error'}`);
   }
 
-  // Record in posts table if it's a tweet action
-  if (['reply', 'quote'].includes(rule.action_type) && proxyResponse.data?.data?.id) {
+  // Record in posts table if it's a reply action
+  if (actionType === 'reply' && proxyResponse.data?.data?.id) {
     await sb.from('posts').insert({
       user_id: executorAccount.user_id,
       account_id: executorAccount.id,
@@ -445,7 +495,7 @@ async function executeAction(sb: any, rule: EngagementRule, target: any, executo
       tweet_id: proxyResponse.data.data.id,
       posted_at: new Date().toISOString(),
       status: 'posted',
-      tags: ['auto_engagement', rule.action_type],
+      tags: ['auto_engagement', actionType],
     });
   }
 

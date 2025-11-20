@@ -22,7 +22,7 @@ serve(async (req) => {
     // Get posts that are scheduled and past their scheduled time
     const { data: scheduledPosts, error: fetchError } = await supabase
       .from('posts')
-      .select('*, account_tokens!inner(x_user_id, access_token)')
+      .select('*')
       .eq('status', 'scheduled')
       .lte('scheduled_at', new Date().toISOString())
       .limit(50);
@@ -93,6 +93,7 @@ serve(async (req) => {
               body: { text: post.content },
               x_user_id: accountToken.x_user_id,
               account_id: post.account_id,
+              user_id: post.user_id,
             }),
           }
         );

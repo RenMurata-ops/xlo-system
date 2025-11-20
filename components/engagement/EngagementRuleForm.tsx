@@ -12,7 +12,8 @@ interface EngagementRule {
   is_active: boolean;
   search_type: 'keyword' | 'url' | 'user' | 'hashtag';
   search_query: string;
-  action_type: 'like' | 'reply' | 'retweet' | 'follow' | 'quote';
+  action_type: 'like' | 'reply' | 'retweet' | 'follow'; // Keep for backward compatibility
+  action_types: ('like' | 'reply' | 'retweet' | 'follow')[] | null;
   reply_template_id: string | null;
   min_followers: number;
   max_followers: number | null;
@@ -48,7 +49,7 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
     description: '',
     search_type: 'keyword' as 'keyword' | 'url' | 'user' | 'hashtag',
     search_query: '',
-    action_type: 'like' as 'like' | 'reply' | 'retweet' | 'follow' | 'quote',
+    action_types: ['like'] as ('like' | 'reply' | 'retweet' | 'follow')[],
     reply_template_id: '',
     min_followers: 0,
     max_followers: '',
@@ -56,7 +57,7 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
     exclude_keywords: '',
     exclude_verified: false,
     require_verified: false,
-    executor_account_ids: '',
+    executor_account_ids: [] as string[],
     allowed_account_tags: '',
     max_actions_per_execution: 10,
     execution_interval_hours: 1,
@@ -88,7 +89,7 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
         description: rule.description || '',
         search_type: rule.search_type,
         search_query: rule.search_query,
-        action_type: rule.action_type,
+        action_types: rule.action_types || (rule.action_type ? [rule.action_type] : ['like']),
         reply_template_id: rule.reply_template_id || '',
         min_followers: rule.min_followers,
         max_followers: rule.max_followers?.toString() || '',
@@ -96,7 +97,7 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
         exclude_keywords: rule.exclude_keywords ? rule.exclude_keywords.join(', ') : '',
         exclude_verified: rule.exclude_verified,
         require_verified: rule.require_verified,
-        executor_account_ids: rule.executor_account_ids ? rule.executor_account_ids.join(', ') : '',
+        executor_account_ids: rule.executor_account_ids || [],
         allowed_account_tags: rule.allowed_account_tags ? rule.allowed_account_tags.join(', ') : '',
         max_actions_per_execution: rule.max_actions_per_execution,
         execution_interval_hours: rule.execution_interval_hours,
@@ -119,10 +120,10 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
   async function loadAccounts() {
     try {
       const { data, error } = await supabase
-        .from('account_tokens')
-        .select('id, x_username')
+        .from('main_accounts')
+        .select('id, handle, name, is_active')
         .eq('is_active', true)
-        .order('x_username');
+        .order('handle');
 
       if (error) throw error;
       setAccounts(data || []);
@@ -131,13 +132,45 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
     }
   }
 
+  const toggleAccountSelection = (accountId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      executor_account_ids: prev.executor_account_ids.includes(accountId)
+        ? prev.executor_account_ids.filter(id => id !== accountId)
+        : [...prev.executor_account_ids, accountId]
+    }));
+  };
+
+  const toggleActionType = (actionType: 'like' | 'reply' | 'retweet' | 'follow') => {
+    setFormData(prev => ({
+      ...prev,
+      action_types: prev.action_types.includes(actionType)
+        ? prev.action_types.filter(a => a !== actionType)
+        : [...prev.action_types, actionType]
+    }));
+  };
+
+  const selectAllAccounts = () => {
+    setFormData(prev => ({
+      ...prev,
+      executor_account_ids: accounts.map(a => a.id)
+    }));
+  };
+
+  const deselectAllAccounts = () => {
+    setFormData(prev => ({
+      ...prev,
+      executor_account_ids: []
+    }));
+  };
+
   async function loadTemplates() {
     try {
       const { data, error } = await supabase
         .from('post_templates')
         .select('id, name, template_type')
         .eq('is_active', true)
-        .in('template_type', ['reply', 'quote'])
+        .eq('template_type', 'reply')
         .order('name');
 
       if (error) throw error;
@@ -158,20 +191,16 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
 
       if (!formData.name) throw new Error('ルール名は必須です');
       if (!formData.search_query) throw new Error('検索クエリは必須です');
+      if (formData.action_types.length === 0) throw new Error('少なくとも1つのアクションを選択してください');
 
-      if (['reply', 'quote'].includes(formData.action_type) && !formData.reply_template_id) {
-        throw new Error('リプライ/引用アクションにはテンプレートが必要です');
+      if (formData.action_types.includes('reply') && !formData.reply_template_id) {
+        throw new Error('リプライアクションにはテンプレートが必要です');
       }
 
       const excludeKeywords = formData.exclude_keywords
         .split(',')
         .map(k => k.trim())
         .filter(k => k.length > 0);
-
-      const executorAccountIds = formData.executor_account_ids
-        .split(',')
-        .map(id => id.trim())
-        .filter(id => id.length > 0);
 
       const allowedAccountTags = formData.allowed_account_tags
         .split(',')
@@ -183,7 +212,7 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
         description: formData.description || null,
         search_type: formData.search_type,
         search_query: formData.search_query,
-        action_type: formData.action_type,
+        action_types: formData.action_types,
         reply_template_id: formData.reply_template_id || null,
         min_followers: formData.min_followers,
         max_followers: formData.max_followers ? parseInt(formData.max_followers) : null,
@@ -191,7 +220,7 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
         exclude_keywords: excludeKeywords.length > 0 ? excludeKeywords : null,
         exclude_verified: formData.exclude_verified,
         require_verified: formData.require_verified,
-        executor_account_ids: executorAccountIds.length > 0 ? executorAccountIds : null,
+        executor_account_ids: formData.executor_account_ids.length > 0 ? formData.executor_account_ids : null,
         allowed_account_tags: allowedAccountTags.length > 0 ? allowedAccountTags : null,
         max_actions_per_execution: formData.max_actions_per_execution,
         execution_interval_hours: formData.execution_interval_hours,
@@ -464,46 +493,79 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 pb-2 border-b">アクション設定</h3>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                アクションタイプ * (複数選択可)
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex items-center gap-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.action_types.includes('like')}
+                    onChange={() => toggleActionType('like')}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-900">いいね</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.action_types.includes('retweet')}
+                    onChange={() => toggleActionType('retweet')}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-900">リツイート</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.action_types.includes('reply')}
+                    onChange={() => toggleActionType('reply')}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-900">リプライ</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.action_types.includes('follow')}
+                    onChange={() => toggleActionType('follow')}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-900">フォロー</span>
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                選択中: {formData.action_types.length > 0 ? formData.action_types.join(', ') : 'なし'}
+              </p>
+            </div>
+
+            {formData.action_types.includes('reply') && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  アクションタイプ *
+                  リプライテンプレート *
                 </label>
                 <select
-                  required
-                  value={formData.action_type}
-                  onChange={(e) => setFormData({ ...formData, action_type: e.target.value as any })}
+                  required={formData.action_types.includes('reply')}
+                  value={formData.reply_template_id}
+                  onChange={(e) => setFormData({ ...formData, reply_template_id: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="like">いいね</option>
-                  <option value="retweet">リツイート</option>
-                  <option value="reply">リプライ</option>
-                  <option value="quote">引用ツイート</option>
-                  <option value="follow">フォロー</option>
+                  <option value="">テンプレートを選択</option>
+                  {templates.map(tmpl => (
+                    <option key={tmpl.id} value={tmpl.id}>
+                      {tmpl.name} ({tmpl.template_type})
+                    </option>
+                  ))}
                 </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  リプライアクションには必ずテンプレートが必要です
+                </p>
               </div>
-
-              {['reply', 'quote'].includes(formData.action_type) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    テンプレート *
-                  </label>
-                  <select
-                    required={['reply', 'quote'].includes(formData.action_type)}
-                    value={formData.reply_template_id}
-                    onChange={(e) => setFormData({ ...formData, reply_template_id: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">テンプレートを選択</option>
-                    {templates.map(tmpl => (
-                      <option key={tmpl.id} value={tmpl.id}>
-                        {tmpl.name} ({tmpl.template_type})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           {/* フィルター設定 */}
@@ -640,18 +702,58 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                実行アカウントID（カンマ区切り）
-              </label>
-              <textarea
-                rows={2}
-                value={formData.executor_account_ids}
-                onChange={(e) => setFormData({ ...formData, executor_account_ids: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                placeholder="空欄の場合はすべてのアクティブアカウントが対象"
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                利用可能なアカウント: {accounts.length}件
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  実行アカウント
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={selectAllAccounts}
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    すべて選択
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deselectAllAccounts}
+                    className="text-xs text-gray-600 hover:text-gray-700"
+                  >
+                    選択解除
+                  </button>
+                </div>
+              </div>
+
+              <div className="border border-gray-300 rounded-lg p-4 max-h-48 overflow-y-auto bg-gray-50">
+                {accounts.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-2">利用可能なアカウントがありません</p>
+                ) : (
+                  accounts.map((account) => (
+                    <label
+                      key={account.id}
+                      className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.executor_account_ids.includes(account.id)}
+                        onChange={() => toggleAccountSelection(account.id)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-900">
+                        @{account.handle}
+                      </span>
+                      {account.name && (
+                        <span className="text-xs text-gray-500">({account.name})</span>
+                      )}
+                    </label>
+                  ))
+                )}
+              </div>
+
+              <p className="mt-2 text-sm text-gray-500">
+                {formData.executor_account_ids.length > 0
+                  ? `${formData.executor_account_ids.length}件のアカウントを選択中`
+                  : '未選択の場合はすべてのアクティブアカウントが対象'}
               </p>
             </div>
 
