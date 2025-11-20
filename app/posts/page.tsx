@@ -238,13 +238,13 @@ export default function PostsPage() {
 
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">投稿管理</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-3xl font-bold text-white">投稿管理</h1>
+          <p className="text-gray-400 mt-2">
             Twitter投稿を作成・管理します
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg">
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg">
             <input
               type="checkbox"
               id="dryRun"
@@ -252,7 +252,7 @@ export default function PostsPage() {
               onChange={(e) => setDryRun(e.target.checked)}
               className="w-4 h-4"
             />
-            <label htmlFor="dryRun" className="text-sm text-gray-700">
+            <label htmlFor="dryRun" className="text-sm text-gray-300">
               プレビューのみ
             </label>
           </div>
@@ -275,7 +275,7 @@ export default function PostsPage() {
           </button>
           <button
             onClick={loadPosts}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            className="flex items-center gap-2 px-4 py-2 text-gray-300 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 transition"
           >
             <RefreshCw size={20} />
             更新
@@ -291,26 +291,26 @@ export default function PostsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">下書き</div>
-          <div className="text-3xl font-bold text-gray-900">{draftCount}</div>
+        <div className="bg-gray-800 p-6 rounded-lg shadow border border-gray-700">
+          <div className="text-sm text-gray-400 mb-1">下書き</div>
+          <div className="text-3xl font-bold text-white">{draftCount}</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">予約済み</div>
-          <div className="text-3xl font-bold text-blue-600">{scheduledCount}</div>
+        <div className="bg-gray-800 p-6 rounded-lg shadow border border-gray-700">
+          <div className="text-sm text-gray-400 mb-1">予約済み</div>
+          <div className="text-3xl font-bold text-blue-400">{scheduledCount}</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">投稿済み</div>
-          <div className="text-3xl font-bold text-green-600">{postedCount}</div>
+        <div className="bg-gray-800 p-6 rounded-lg shadow border border-gray-700">
+          <div className="text-sm text-gray-400 mb-1">投稿済み</div>
+          <div className="text-3xl font-bold text-green-400">{postedCount}</div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm text-gray-600 mb-1">失敗</div>
-          <div className="text-3xl font-bold text-red-600">{failedCount}</div>
+        <div className="bg-gray-800 p-6 rounded-lg shadow border border-gray-700">
+          <div className="text-sm text-gray-400 mb-1">失敗</div>
+          <div className="text-3xl font-bold text-red-400">{failedCount}</div>
         </div>
       </div>
 
       <div className="mb-6 flex items-center gap-2">
-        <Filter size={20} className="text-gray-600" />
+        <Filter size={20} className="text-gray-400" />
         <div className="flex items-center gap-2 flex-wrap">
           {statuses.map(status => (
             <button
@@ -319,7 +319,7 @@ export default function PostsPage() {
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                 filterStatus === status.value
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  : 'bg-gray-800 text-gray-300 border border-gray-600 hover:bg-gray-700'
               }`}
             >
               {status.label}
@@ -329,12 +329,12 @@ export default function PostsPage() {
       </div>
 
       {filteredPosts.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <FileText size={64} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+        <div className="bg-gray-800 rounded-lg shadow border border-gray-700 p-12 text-center">
+          <FileText size={64} className="mx-auto text-gray-600 mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">
             {filterStatus === 'all' ? '投稿がありません' : `${statuses.find(s => s.value === filterStatus)?.label}の投稿がありません`}
           </h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-400 mb-6">
             新しい投稿を作成してください
           </p>
           <button
