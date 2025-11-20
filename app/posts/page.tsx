@@ -128,7 +128,7 @@ export default function PostsPage() {
       });
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/execute-single-post`,
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/bright-service`,
         {
           method: 'POST',
           headers: {
