@@ -1,6 +1,6 @@
 'use client';
 
-import { Edit2, Trash2, Calendar, Heart, Image as ImageIcon, Clock, Eye, RefreshCw, Repeat2, MessageCircle, Quote, BarChart3 } from 'lucide-react';
+import { Edit2, Trash2, Calendar, Heart, Image as ImageIcon, Clock, Eye, RefreshCw, Repeat2, MessageCircle, Quote, BarChart3, Send } from 'lucide-react';
 
 interface Post {
   id: string;
@@ -10,7 +10,7 @@ interface Post {
   scheduled_at: string | null;
   posted_at: string | null;
   engagement_count: number | null;
-  status: 'draft' | 'scheduled' | 'posted' | 'failed';
+  status: 'draft' | 'scheduled' | 'posted' | 'failed' | 'processing';
   tags: string[] | null;
   created_at: string;
   updated_at: string;
@@ -29,6 +29,8 @@ interface PostCardProps {
   onDelete: () => void;
   onStatusChange: (status: string) => void;
   onPreview: () => void;
+  onPostNow?: () => void;
+  postingNow?: boolean;
   onRefreshEngagement?: () => void;
   refreshingEngagement?: boolean;
 }
@@ -39,6 +41,8 @@ export default function PostCard({
   onDelete,
   onStatusChange,
   onPreview,
+  onPostNow,
+  postingNow = false,
   onRefreshEngagement,
   refreshingEngagement = false
 }: PostCardProps) {
@@ -48,6 +52,7 @@ export default function PostCard({
       case 'scheduled': return 'bg-blue-100 text-blue-800';
       case 'posted': return 'bg-green-100 text-green-800';
       case 'failed': return 'bg-red-100 text-red-800';
+      case 'processing': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -58,6 +63,7 @@ export default function PostCard({
       case 'scheduled': return '予約済み';
       case 'posted': return '投稿済み';
       case 'failed': return '失敗';
+      case 'processing': return '投稿中';
       default: return status;
     }
   };
@@ -158,10 +164,21 @@ export default function PostCard({
 
       <div className="p-4 bg-gray-900/50 border-t border-gray-700 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
+          {(post.status === 'draft' || post.status === 'scheduled') && onPostNow && (
+            <button
+              onClick={onPostNow}
+              disabled={postingNow}
+              className="px-3 py-2 text-sm rounded bg-green-900/50 text-green-300 hover:bg-green-800/50 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send size={14} className={postingNow ? 'animate-pulse' : ''} />
+              {postingNow ? '投稿中...' : '今すぐ投稿'}
+            </button>
+          )}
           {post.status === 'draft' && (
             <button
               onClick={() => onStatusChange('scheduled')}
-              className="px-3 py-2 text-sm rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800/50 transition"
+              disabled={postingNow}
+              className="px-3 py-2 text-sm rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800/50 transition disabled:opacity-50"
             >
               予約
             </button>
@@ -169,7 +186,8 @@ export default function PostCard({
           {post.status === 'scheduled' && (
             <button
               onClick={() => onStatusChange('draft')}
-              className="px-3 py-2 text-sm rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition"
+              disabled={postingNow}
+              className="px-3 py-2 text-sm rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition disabled:opacity-50"
             >
               下書きに戻す
             </button>

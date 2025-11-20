@@ -16,10 +16,11 @@ interface Post {
   scheduled_at: string | null;
   posted_at: string | null;
   engagement_count: number | null;
-  status: 'draft' | 'scheduled' | 'posted' | 'failed';
+  status: 'draft' | 'scheduled' | 'posted' | 'failed' | 'processing';
   tags: string[] | null;
   created_at: string;
   updated_at: string;
+  twitter_id?: string;
 }
 
 export default function PostsPage() {
@@ -33,6 +34,7 @@ export default function PostsPage() {
   const [bulkExecuting, setBulkExecuting] = useState(false);
   const [bulkResult, setBulkResult] = useState<any>(null);
   const [dryRun, setDryRun] = useState(false);
+  const [postingNow, setPostingNow] = useState<Record<string, boolean>>({});
   const supabase = createClient();
 
   useEffect(() => {
@@ -107,6 +109,62 @@ export default function PostsPage() {
   function handlePreview(post: Post) {
     setPreviewPost(post);
     setShowPreview(true);
+  }
+
+  async function handlePostNow(postId: string) {
+    if (!confirm('この投稿を今すぐ投稿しますか？')) return;
+
+    try {
+      setPostingNow(prev => ({ ...prev, [postId]: true }));
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('ログインが必要です');
+        return;
+      }
+
+      const loadingToast = toast.loading('投稿中...', {
+        description: 'しばらくお待ちください',
+      });
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/execute-single-post`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            post_id: postId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '投稿に失敗しました');
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('投稿が完了しました', {
+          id: loadingToast,
+          description: `Tweet ID: ${result.tweet_id}`,
+        });
+        loadPosts(); // Reload posts to show updated status
+      } else {
+        throw new Error(result.error || '投稿に失敗しました');
+      }
+    } catch (error: any) {
+      console.error('Post now error:', error);
+      toast.error('投稿に失敗しました', {
+        description: error.message,
+      });
+    } finally {
+      setPostingNow(prev => ({ ...prev, [postId]: false }));
+    }
   }
 
   async function handleBulkExecute(batchSize: number = 10) {
@@ -355,6 +413,8 @@ export default function PostsPage() {
               onDelete={() => handleDelete(post.id)}
               onStatusChange={(status) => handleStatusChange(post.id, status)}
               onPreview={() => handlePreview(post)}
+              onPostNow={() => handlePostNow(post.id)}
+              postingNow={postingNow[post.id] || false}
             />
           ))}
         </div>
