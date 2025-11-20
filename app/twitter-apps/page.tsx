@@ -85,42 +85,6 @@ export default function TwitterAppsPage() {
     }
   }
 
-  async function handleConnectOAuth() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('ログインが必要です');
-        return;
-      }
-
-      const loadingToast = toast.loading('OAuth接続を開始しています...');
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/twitter-oauth-start`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('OAuth開始に失敗しました');
-      }
-
-      const { authUrl } = await response.json();
-      toast.success('OAuth接続ページに移動します', { id: loadingToast });
-      window.location.href = authUrl;
-    } catch (error: any) {
-      console.error('OAuth error:', error);
-      toast.error('OAuth接続に失敗しました', {
-        description: error.message,
-      });
-    }
-  }
-
   function handleEdit(app: TwitterApp) {
     setEditingApp(app);
     setShowForm(true);
@@ -144,27 +108,40 @@ export default function TwitterAppsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white">Twitter Apps</h1>
+          <h1 className="text-3xl font-bold text-white">X Apps 管理</h1>
           <p className="text-gray-400 mt-2">
-            Twitterアプリケーションの認証情報を管理します
+            X (Twitter) アカウントを操作するために必要なX Appの認証情報を登録します
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleConnectOAuth}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-          >
-            <Plus size={20} />
-            OAuth2で接続
-          </button>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            <Plus size={20} />
-            手動登録
-          </button>
-        </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+        >
+          <Plus size={20} />
+          X Appを追加
+        </button>
+      </div>
+
+      {/* Setup Instructions */}
+      <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-6 mb-8">
+        <h2 className="text-lg font-semibold text-blue-200 mb-3">X App登録の手順</h2>
+        <ol className="list-decimal list-inside space-y-2 text-sm text-blue-100">
+          <li>
+            <a
+              href="https://developer.twitter.com/en/portal/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline"
+            >
+              X Developer Portal
+            </a>
+            でアプリを作成
+          </li>
+          <li>アプリ設定でOAuth 2.0を有効化し、Callback URLを設定</li>
+          <li>API Key、API Secret、Client ID、Client Secretを取得</li>
+          <li>このページで「X Appを追加」ボタンをクリックし、取得した情報を入力</li>
+          <li>登録後、メインアカウント・スパムアカウント管理ページでOAuth認証を実行</li>
+        </ol>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -187,20 +164,20 @@ export default function TwitterAppsPage() {
       </div>
 
       {apps.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <Settings size={64} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            Twitterアプリが登録されていません
+        <div className="bg-gray-900 border border-gray-800 rounded-lg shadow p-12 text-center">
+          <Settings size={64} className="mx-auto text-gray-600 mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">
+            X Appが登録されていません
           </h3>
-          <p className="text-gray-600 mb-6">
-            まずはTwitter Developer Portalでアプリを作成し、認証情報を登録してください
+          <p className="text-gray-400 mb-6">
+            上記の手順に従ってX Developer PortalでアプリをまずX Appを登録してください
           </p>
           <button
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
           >
             <Plus size={20} />
-            最初のアプリを登録
+            X Appを追加
           </button>
         </div>
       ) : (

@@ -63,6 +63,8 @@ export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
         api_key: formData.api_key,
         api_secret: formData.api_secret,
         bearer_token: formData.bearer_token || null,
+        client_id: formData.client_id || null,
+        client_secret: formData.client_secret || null,
         is_active: formData.is_active,
         user_id: user.id,
       };
@@ -182,6 +184,41 @@ export default function TwitterAppForm({ app, onClose }: TwitterAppFormProps) {
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="xxxxxxxxxxxxxxxxxxxx"
               />
+            </div>
+
+            <div className="border-t border-gray-700 pt-6">
+              <h3 className="text-lg font-semibold text-white mb-4">OAuth 2.0 認証情報</h3>
+              <p className="text-sm text-gray-400 mb-4">
+                アカウント認証機能を使用する場合は、OAuth 2.0のClient IDとClient Secretを入力してください
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Client ID (OAuth 2.0)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.client_id}
+                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="xxxxxxxxxxxxxxxxxxxx"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Client Secret (OAuth 2.0)
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.client_secret}
+                    onChange={(e) => setFormData({ ...formData, client_secret: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="xxxxxxxxxxxxxxxxxxxx"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">

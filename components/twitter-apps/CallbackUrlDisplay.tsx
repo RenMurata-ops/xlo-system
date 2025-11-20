@@ -6,8 +6,8 @@ import { Copy, Check, ExternalLink } from 'lucide-react';
 export default function CallbackUrlDisplay() {
   const [copied, setCopied] = useState(false);
 
-  // This should be your actual callback URL
-  const callbackUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/auth/twitter/callback`;
+  // Supabase Edge Function callback URL
+  const callbackUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/twitter-oauth-callback-v2`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(callbackUrl);
