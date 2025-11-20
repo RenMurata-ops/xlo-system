@@ -48,11 +48,21 @@ export default function PostForm({ post, onClose }: PostFormProps) {
   useEffect(() => {
     loadAccounts();
     if (post) {
+      // Convert UTC time to local time for datetime-local input
+      let scheduledAtLocal = '';
+      if (post.scheduled_at) {
+        const date = new Date(post.scheduled_at);
+        // Get timezone offset and convert to local time
+        const offset = date.getTimezoneOffset() * 60000;
+        const localDate = new Date(date.getTime() - offset);
+        scheduledAtLocal = localDate.toISOString().slice(0, 16);
+      }
+
       setFormData({
         content: post.content,
         media_urls: post.media_urls ? post.media_urls.join('\n') : '',
         account_ids: [post.account_id],
-        scheduled_at: post.scheduled_at ? new Date(post.scheduled_at).toISOString().slice(0, 16) : '',
+        scheduled_at: scheduledAtLocal,
         tags: post.tags ? post.tags.join(', ') : '',
         status: post.status,
         use_interval: false,
@@ -194,12 +204,19 @@ export default function PostForm({ post, onClose }: PostFormProps) {
 
       if (post) {
         // 編集モード（単一アカウント）
+        // Convert local datetime to UTC for database storage
+        let scheduledAtUTC = null;
+        if (formData.scheduled_at) {
+          const localDate = new Date(formData.scheduled_at);
+          scheduledAtUTC = localDate.toISOString();
+        }
+
         const payload = {
           content: formData.content,
           media_urls: mediaUrls.length > 0 ? mediaUrls : null,
           account_id: formData.account_ids[0],
-          scheduled_at: formData.scheduled_at || null,
-          status: formData.scheduled_at ? 'scheduled' : formData.status,
+          scheduled_at: scheduledAtUTC,
+          status: scheduledAtUTC ? 'scheduled' : formData.status,
           tags: tags.length > 0 ? tags : null,
           user_id: user.id,
         };
@@ -214,13 +231,18 @@ export default function PostForm({ post, onClose }: PostFormProps) {
       } else {
         // 新規作成（複数アカウント対応）
         const posts = formData.account_ids.map((accountId, index) => {
-          let scheduledAt = formData.scheduled_at || null;
+          let scheduledAt = null;
 
-          // 複数アカウントかつ予約投稿の場合、1時間ずつずらす
-          if (scheduledAt && formData.use_interval && formData.account_ids.length > 1) {
-            const baseDate = new Date(scheduledAt);
-            baseDate.setHours(baseDate.getHours() + (index * formData.interval_hours));
-            scheduledAt = baseDate.toISOString();
+          // Convert local datetime to UTC
+          if (formData.scheduled_at) {
+            const localDate = new Date(formData.scheduled_at);
+
+            // 複数アカウントかつ予約投稿の場合、1時間ずつずらす
+            if (formData.use_interval && formData.account_ids.length > 1) {
+              localDate.setHours(localDate.getHours() + (index * formData.interval_hours));
+            }
+
+            scheduledAt = localDate.toISOString();
           }
 
           return {
