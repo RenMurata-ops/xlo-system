@@ -11,7 +11,7 @@ interface Post {
   media_urls: string[] | null;
   account_id: string;
   scheduled_at: string | null;
-  status: 'draft' | 'scheduled' | 'posted' | 'failed';
+  status: 'draft' | 'scheduled' | 'posted' | 'failed' | 'processing';
   tags: string[] | null;
 }
 
@@ -32,7 +32,7 @@ export default function PostForm({ post, onClose }: PostFormProps) {
     account_ids: [] as string[],
     scheduled_at: '',
     tags: '',
-    status: 'draft' as 'draft' | 'scheduled' | 'posted' | 'failed',
+    status: 'draft' as 'draft' | 'scheduled' | 'posted' | 'failed' | 'processing',
     use_interval: false,
     interval_hours: 1,
   });

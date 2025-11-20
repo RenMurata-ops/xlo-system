@@ -12,7 +12,7 @@ interface Post {
   scheduled_at: string | null;
   posted_at: string | null;
   engagement_count: number | null;
-  status: 'draft' | 'scheduled' | 'posted' | 'failed';
+  status: 'draft' | 'scheduled' | 'posted' | 'failed' | 'processing';
   tags: string[] | null;
   created_at: string;
   updated_at: string;
