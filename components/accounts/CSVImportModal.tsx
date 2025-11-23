@@ -210,7 +210,7 @@ export default function CSVImportModal({ onClose, onImportComplete, accountType 
                   タブ区切りまたはカンマ区切りに対応
                 </p>
                 <p className="text-xs text-blue-700 mt-1 font-mono">
-                  ヘッダー: screen, password, mail, mailpw, reg_number, auth, 二段階認証コード取得URL, バックアップコード
+                  screen, password, mail, mailpw, 二段階認証コード取得URL, バックアップコード
                 </p>
               </div>
             </div>
@@ -254,6 +254,7 @@ export default function CSVImportModal({ onClose, onImportComplete, accountType 
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">mail</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">password</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">2FA URL</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">backup codes</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -262,7 +263,8 @@ export default function CSVImportModal({ onClose, onImportComplete, accountType 
                           <td className="px-4 py-2 text-sm text-gray-900">{account.screen}</td>
                           <td className="px-4 py-2 text-sm text-gray-600 truncate max-w-[150px]">{account.mail}</td>
                           <td className="px-4 py-2 text-sm text-gray-600">{'•'.repeat(Math.min(8, account.password.length))}</td>
-                          <td className="px-4 py-2 text-sm text-gray-600 truncate max-w-[200px]">{account.two_factor_url}</td>
+                          <td className="px-4 py-2 text-sm text-gray-600 truncate max-w-[150px]">{account.two_factor_url || '-'}</td>
+                          <td className="px-4 py-2 text-sm text-gray-600 truncate max-w-[100px]">{account.backup_codes ? '設定済' : '-'}</td>
                         </tr>
                       ))}
                     </tbody>
