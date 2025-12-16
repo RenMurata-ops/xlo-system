@@ -22,18 +22,24 @@ interface TargetedEngagement {
   created_at: string;
 }
 
-interface Account {
+interface FollowAccount {
   id: string;
-  account_handle: string;
-  account_name: string | null;
+  target_handle: string;
+  target_name: string | null;
+}
+
+interface SpamAccount {
+  id: string;
+  handle: string;
+  name: string | null;
 }
 
 export default function TargetedEngagementPage() {
   const [engagements, setEngagements] = useState<TargetedEngagement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [followAccounts, setFollowAccounts] = useState<Account[]>([]);
-  const [spamAccounts, setSpamAccounts] = useState<Account[]>([]);
+  const [followAccounts, setFollowAccounts] = useState<FollowAccount[]>([]);
+  const [spamAccounts, setSpamAccounts] = useState<SpamAccount[]>([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -75,8 +81,8 @@ export default function TargetedEngagementPage() {
   async function loadAccounts() {
     try {
       const [followRes, spamRes] = await Promise.all([
-        supabase.from('follow_accounts').select('id, account_handle, account_name').eq('is_active', true).order('account_handle'),
-        supabase.from('spam_accounts').select('id, account_handle, account_name').eq('is_active', true).order('account_handle'),
+        supabase.from('follow_accounts').select('id, target_handle, target_name').eq('is_active', true).order('target_handle'),
+        supabase.from('spam_accounts').select('id, handle, name').eq('is_active', true).order('handle'),
       ]);
 
       if (followRes.data) setFollowAccounts(followRes.data);
@@ -464,25 +470,34 @@ export default function TargetedEngagementPage() {
                         return accounts.length === 0 ? (
                           <p className="text-sm text-gray-500 text-center py-2">利用可能なアカウントがありません</p>
                         ) : (
-                          accounts.map((account) => (
-                            <label
-                              key={account.id}
-                              className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={formData.selected_account_ids.includes(account.id)}
-                                onChange={() => toggleAccountSelection(account.id)}
-                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                              />
-                              <span className="text-sm font-medium text-gray-900">
-                                @{account.account_handle}
-                              </span>
-                              {account.account_name && (
-                                <span className="text-xs text-gray-500">({account.account_name})</span>
-                              )}
-                            </label>
-                          ))
+                          accounts.map((account) => {
+                            const handle = formData.account_type === 'follow'
+                              ? (account as FollowAccount).target_handle
+                              : (account as SpamAccount).handle;
+                            const name = formData.account_type === 'follow'
+                              ? (account as FollowAccount).target_name
+                              : (account as SpamAccount).name;
+
+                            return (
+                              <label
+                                key={account.id}
+                                className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={formData.selected_account_ids.includes(account.id)}
+                                  onChange={() => toggleAccountSelection(account.id)}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <span className="text-sm font-medium text-gray-900">
+                                  @{handle}
+                                </span>
+                                {name && (
+                                  <span className="text-xs text-gray-500">({name})</span>
+                                )}
+                              </label>
+                            );
+                          })
                         );
                       })()}
                     </div>
