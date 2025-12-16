@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
       .from('posts')
       .select(`
         *,
-        account:main_accounts(id, account_handle)
+        account:main_accounts(id, handle)
       `)
       .eq('id', post_id)
       .single();

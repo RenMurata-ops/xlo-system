@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
         // Get target account's Twitter user ID
         const { data: targetAccount } = await supabase
           .from('main_accounts')
-          .select('account_handle')
+          .select('handle')
           .eq('id', trigger.target_account_id)
           .single();
 
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
 
         // Fetch latest tweets from target account
         const userResponse = await fetch(
-          `https://api.twitter.com/2/users/by/username/${targetAccount.account_handle}?user.fields=id`,
+          `https://api.twitter.com/2/users/by/username/${targetAccount.handle}?user.fields=id`,
           {
             headers: {
               'Authorization': `Bearer ${targetToken.access_token}`,
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
         );
 
         if (!userResponse.ok) {
-          results.errors.push(`Failed to get user ID for ${targetAccount.account_handle}`);
+          results.errors.push(`Failed to get user ID for ${targetAccount.handle}`);
           continue;
         }
 
@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
         );
 
         if (!tweetsResponse.ok) {
-          results.errors.push(`Failed to fetch tweets for ${targetAccount.account_handle}`);
+          results.errors.push(`Failed to fetch tweets for ${targetAccount.handle}`);
           continue;
         }
 

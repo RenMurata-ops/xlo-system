@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
       .from('follow_relationships')
       .select(`
         *,
-        follower_account:spam_accounts(id, account_handle),
+        follower_account:spam_accounts(id, handle),
         follower_follow_account:follow_accounts(id, target_handle)
       `)
       .eq('status', 'pending')
