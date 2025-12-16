@@ -2,6 +2,7 @@
 // 投稿ループとリプライループの実行処理
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,9 +35,12 @@ Deno.serve(async (req) => {
   console.log(`[${traceId}] Loop execution started`);
 
   try {
+    // Validate required environment variables
+    validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+
     const sb = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      getRequiredEnv('SUPABASE_URL'),
+      getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY')
     );
 
     // Get pending loops (post and reply types only)
@@ -63,20 +67,59 @@ Deno.serve(async (req) => {
 
     const results = [];
     for (const loop of loops) {
-      console.log(`[${traceId}] Executing loop ${loop.id} (${loop.loop_type})`);
-
-      const result = loop.loop_type === 'post'
-        ? await executePostLoop(sb, loop, traceId)
-        : await executeReplyLoop(sb, loop, traceId);
-
-      results.push(result);
-
-      // Update loop stats
-      await sb.rpc('update_loop_execution_stats', {
+      // Try to acquire lock for this loop
+      const { data: lockAcquired, error: lockError } = await sb.rpc('acquire_loop_lock', {
         p_loop_id: loop.id,
-        p_post_count: result.posts_created || 0,
-        p_next_template_index: result.next_template_index || 0
+        p_lock_duration_minutes: 10
       });
+
+      if (lockError) {
+        console.error(`[${traceId}] Error acquiring lock for loop ${loop.id}:`, lockError);
+        results.push({
+          loop_id: loop.id,
+          error: 'Failed to acquire lock',
+          posts_created: 0
+        });
+        continue;
+      }
+
+      if (!lockAcquired) {
+        console.log(`[${traceId}] Loop ${loop.id} is already running, skipping`);
+        results.push({
+          loop_id: loop.id,
+          skipped: true,
+          reason: 'Already running',
+          posts_created: 0
+        });
+        continue;
+      }
+
+      try {
+        console.log(`[${traceId}] Executing loop ${loop.id} (${loop.loop_type})`);
+
+        const result = loop.loop_type === 'post'
+          ? await executePostLoop(sb, loop, traceId)
+          : await executeReplyLoop(sb, loop, traceId);
+
+        results.push(result);
+
+        // Update loop stats
+        await sb.rpc('update_loop_execution_stats', {
+          p_loop_id: loop.id,
+          p_post_count: result.posts_created || 0,
+          p_next_template_index: result.next_template_index || 0
+        });
+      } catch (error: any) {
+        console.error(`[${traceId}] Error executing loop ${loop.id}:`, error);
+        results.push({
+          loop_id: loop.id,
+          error: error.message,
+          posts_created: 0
+        });
+      } finally {
+        // Always release lock
+        await sb.rpc('release_loop_lock', { p_loop_id: loop.id });
+      }
     }
 
     return new Response(
@@ -426,13 +469,15 @@ async function findTargetTweets(sb: any, loop: Loop, traceId: string) {
 
 async function callTwitterApi(url: string, key: string, opts: any) {
   try {
-    const resp = await fetch(`${url}/functions/v1/twitter-api-proxy`, {
+    const resp = await fetchWithTimeout(`${url}/functions/v1/twitter-api-proxy`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${key}`
       },
-      body: JSON.stringify(opts)
+      body: JSON.stringify(opts),
+      timeout: 45000, // 45 seconds for API proxy calls
+      maxRetries: 2
     });
 
     return await resp.json();

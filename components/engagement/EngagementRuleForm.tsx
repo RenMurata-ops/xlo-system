@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 
 interface EngagementRule {
   id: string;
@@ -127,8 +128,9 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
 
       if (error) throw error;
       setAccounts(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading accounts:', error);
+      toast.error('アカウントの読み込みに失敗しました');
     }
   }
 
@@ -175,8 +177,9 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
 
       if (error) throw error;
       setTemplates(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading templates:', error);
+      toast.error('テンプレートの読み込みに失敗しました');
     }
   }
 

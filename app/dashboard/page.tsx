@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, TrendingUp, Users, FileText, Zap, Repeat, MessageCircle, Globe } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import StatsCard from '@/components/dashboard/StatsCard';
 import QuickActions from '@/components/dashboard/QuickActions';
 import RateLimitMonitor from '@/components/dashboard/RateLimitMonitor';
@@ -41,17 +42,7 @@ export default function DashboardPage() {
 
   async function loadStats() {
     try {
-      const [
-        twitterApps,
-        mainAccounts,
-        followAccounts,
-        spamAccounts,
-        posts,
-        engagementRules,
-        loops,
-        templates,
-        proxies,
-      ] = await Promise.all([
+      const results = await Promise.allSettled([
         supabase.from('twitter_apps').select('*', { count: 'exact' }),
         supabase.from('main_accounts').select('*', { count: 'exact' }),
         supabase.from('follow_accounts').select('*', { count: 'exact' }),
@@ -62,6 +53,26 @@ export default function DashboardPage() {
         supabase.from('templates').select('*', { count: 'exact' }),
         supabase.from('proxies').select('*', { count: 'exact' }),
       ]);
+
+      // Extract results, handling both fulfilled and rejected promises
+      const [
+        twitterApps,
+        mainAccounts,
+        followAccounts,
+        spamAccounts,
+        posts,
+        engagementRules,
+        loops,
+        templates,
+        proxies,
+      ] = results.map((result, index) => {
+        if (result.status === 'fulfilled') {
+          return result.value;
+        } else {
+          console.error(`Error loading data for index ${index}:`, result.reason);
+          return { count: 0, data: [] };
+        }
+      });
 
       const dashboardStats: DashboardStats = {
         totalTwitterApps: twitterApps.count || 0,
@@ -86,6 +97,7 @@ export default function DashboardPage() {
       setStats(dashboardStats);
     } catch (error) {
       console.error('Error loading stats:', error);
+      toast.error('統計情報の読み込みに失敗しました');
     } finally {
       setLoading(false);
     }

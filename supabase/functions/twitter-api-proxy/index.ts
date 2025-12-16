@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { validateEnv, getRequiredEnv } from '../_shared/fetch-with-timeout.ts';
 
 interface ProxyRequest {
   user_id?: string; // For service role requests
@@ -92,9 +93,12 @@ serve(async (req) => {
       throw new Error('Missing authorization header');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    // Validate required environment variables
+    validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_ANON_KEY']);
+
+    const supabaseUrl = getRequiredEnv('SUPABASE_URL');
+    const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseAnonKey = getRequiredEnv('SUPABASE_ANON_KEY');
 
     // Check if request is from service role (background job) or user
     const isServiceRole = authHeader.includes(supabaseServiceKey);
@@ -168,6 +172,9 @@ serve(async (req) => {
       const newToken = await refreshAccessToken(supabase, tokenRecord, userId);
       if (newToken) {
         accessToken = newToken;
+      } else {
+        // Refresh failed and token is expiring - return error
+        throw new Error('Token refresh failed and token is expired or expiring');
       }
     }
 
@@ -179,16 +186,20 @@ serve(async (req) => {
       });
     }
 
-    // Make request to Twitter API
+    // Make request to Twitter API with timeout and retry
     const twitterHeaders: Record<string, string> = {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     };
 
-    const twitterResponse = await fetch(twitterUrl.toString(), {
+    const { fetchWithTimeout } = await import('../_shared/fetch-with-timeout.ts');
+
+    const twitterResponse = await fetchWithTimeout(twitterUrl.toString(), {
       method: method.toUpperCase(),
       headers: twitterHeaders,
       body: body ? JSON.stringify(body) : undefined,
+      timeout: 30000, // 30 seconds
+      maxRetries: 3,
     });
 
     const responseData = await twitterResponse.json();

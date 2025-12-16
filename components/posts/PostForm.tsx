@@ -171,8 +171,9 @@ export default function PostForm({ post, onClose }: PostFormProps) {
 
       if (error) throw error;
       setAccounts(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading accounts:', error);
+      toast.error('アカウントの読み込みに失敗しました');
     }
   }
 

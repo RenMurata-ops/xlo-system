@@ -65,7 +65,7 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
         description: loop.description || '',
         template_ids: loop.template_ids || [],
         selection_mode: loop.selection_mode || 'random',
-        execution_interval_minutes: loop.execution_interval_minutes || (loop.execution_interval_hours * 60),
+        execution_interval_minutes: loop.execution_interval_minutes || (loop.execution_interval_hours ? loop.execution_interval_hours * 60 : 60),
         min_accounts: loop.min_accounts,
         max_accounts: loop.max_accounts,
         executor_account_ids: loop.executor_account_ids || [],
