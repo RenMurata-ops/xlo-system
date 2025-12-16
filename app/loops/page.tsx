@@ -71,11 +71,11 @@ export default function LoopsPage() {
         (data || []).map(async (loop) => {
           if (loop.template_ids && loop.template_ids.length > 0) {
             const { data: templates } = await supabase
-              .from('post_templates')
-              .select('name')
+              .from('templates')
+              .select('template_name')
               .in('id', loop.template_ids);
 
-            const templateNames = templates?.map(t => t.name).join(', ') || `${loop.template_ids.length}件のテンプレート`;
+            const templateNames = templates?.map(t => t.template_name).join(', ') || `${loop.template_ids.length}件のテンプレート`;
             return { ...loop, template_names: templateNames };
           }
           return loop;

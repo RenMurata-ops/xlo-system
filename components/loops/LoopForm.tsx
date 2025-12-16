@@ -108,11 +108,11 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
       }
 
       const { data, error } = await supabase
-        .from('post_templates')
-        .select('id, name, description, template_type')
+        .from('templates')
+        .select('id, template_name, template_type')
         .eq('is_active', true)
         .eq('template_type', templateType)
-        .order('name');
+        .order('template_name');
 
       if (error) throw error;
       setTemplates(data || []);
@@ -469,13 +469,8 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
                         />
                         <div className="flex-1">
                           <span className="text-sm font-medium text-gray-900 block">
-                            {template.name}
+                            {template.template_name}
                           </span>
-                          {template.description && (
-                            <span className="text-xs text-gray-500 block mt-1">
-                              {template.description}
-                            </span>
-                          )}
                         </div>
                       </label>
                     ))}

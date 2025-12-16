@@ -167,11 +167,11 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
   async function loadTemplates() {
     try {
       const { data, error } = await supabase
-        .from('post_templates')
-        .select('id, name, template_type')
+        .from('templates')
+        .select('id, template_name, template_type')
         .eq('is_active', true)
         .eq('template_type', 'reply')
-        .order('name');
+        .order('template_name');
 
       if (error) throw error;
       setTemplates(data || []);

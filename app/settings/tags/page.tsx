@@ -37,9 +37,9 @@ export default function TagsManagementPage() {
       // Load tags from multiple sources
       const tagMap = new Map<string, { count: number; sources: Set<string> }>();
 
-      // From post_templates
+      // From templates
       const { data: templates } = await supabase
-        .from('post_templates')
+        .from('templates')
         .select('tags');
 
       templates?.forEach(t => {
@@ -122,7 +122,7 @@ export default function TagsManagementPage() {
       const categoryMap = new Map<string, number>();
 
       const { data: templateCategories } = await supabase
-        .from('post_templates')
+        .from('templates')
         .select('category');
 
       templateCategories?.forEach(t => {
@@ -170,7 +170,7 @@ export default function TagsManagementPage() {
 
     try {
       // Update in all tables that use tags
-      const tables = ['post_templates', 'posts', 'spam_accounts', 'follow_accounts', 'main_accounts'];
+      const tables = ['templates', 'posts', 'spam_accounts', 'follow_accounts', 'main_accounts'];
 
       for (const table of tables) {
         const { data } = await supabase
@@ -202,7 +202,7 @@ export default function TagsManagementPage() {
     if (!confirm(`タグ "${tagName}" を全ての項目から削除してもよろしいですか？`)) return;
 
     try {
-      const tables = ['post_templates', 'posts', 'spam_accounts', 'follow_accounts', 'main_accounts'];
+      const tables = ['templates', 'posts', 'spam_accounts', 'follow_accounts', 'main_accounts'];
 
       for (const table of tables) {
         const { data } = await supabase
@@ -238,7 +238,7 @@ export default function TagsManagementPage() {
     try {
       if (source === 'テンプレート') {
         await supabase
-          .from('post_templates')
+          .from('templates')
           .update({ category: newName })
           .eq('category', oldName);
       } else if (source === 'フォローアカウント') {
@@ -263,7 +263,7 @@ export default function TagsManagementPage() {
     try {
       if (source === 'テンプレート') {
         await supabase
-          .from('post_templates')
+          .from('templates')
           .update({ category: null })
           .eq('category', categoryName);
       } else if (source === 'フォローアカウント') {
