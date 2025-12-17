@@ -2,6 +2,7 @@
 // Executes automatic engagement rules (like, reply, follow, etc.)
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { validateEnv, getRequiredEnv } from '../_shared/fetch-with-timeout.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,9 +50,10 @@ Deno.serve(async (req) => {
     const traceId = crypto.randomUUID();
     console.log(`[${traceId}] Starting auto engagement execution`);
 
+    validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
     const sb = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      getRequiredEnv('SUPABASE_URL'),
+      getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY')
     );
 
     // Get pending rules

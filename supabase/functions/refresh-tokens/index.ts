@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
 
 interface TokenRefreshResult {
   token_id: string;
@@ -30,13 +31,15 @@ async function refreshSingleToken(
 
     const basicAuth = btoa(`${twitterApp.client_id}:${twitterApp.client_secret}`);
 
-    const response = await fetch('https://api.twitter.com/2/oauth2/token', {
+    const response = await fetchWithTimeout('https://api.twitter.com/2/oauth2/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Basic ${basicAuth}`,
       },
       body: refreshParams.toString(),
+      timeout: 30000,
+      maxRetries: 2,
     });
 
     if (!response.ok) {
@@ -121,8 +124,9 @@ serve(async (req) => {
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+    const SUPABASE_URL = getRequiredEnv('SUPABASE_URL');
+    const SERVICE_ROLE_KEY = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 

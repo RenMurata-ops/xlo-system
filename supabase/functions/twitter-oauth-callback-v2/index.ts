@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { validateEnv, getRequiredEnv } from '../_shared/fetch-with-timeout.ts';
 
 serve(async (req) => {
   try {
@@ -20,9 +21,12 @@ serve(async (req) => {
       throw new Error('Missing code or state parameter');
     }
 
+    // Validate required environment variables
+    validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+
     // Initialize Supabase with service role key (admin access)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = getRequiredEnv('SUPABASE_URL');
+    const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Retrieve oauth session by state

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
 
 interface SinglePostRequest {
   post_id: string;
@@ -24,9 +25,10 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    validateEnv(['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY']);
+    const supabaseUrl = getRequiredEnv('SUPABASE_URL');
+    const supabaseAnonKey = getRequiredEnv('SUPABASE_ANON_KEY');
+    const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
 
     // Verify user
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
@@ -89,7 +91,7 @@ serve(async (req) => {
       .eq('id', post_id);
 
     // Post to Twitter via proxy
-    const proxyResponse = await fetch(
+    const proxyResponse = await fetchWithTimeout(
       `${supabaseUrl}/functions/v1/twitter-api-proxy`,
       {
         method: 'POST',
@@ -104,6 +106,8 @@ serve(async (req) => {
           x_user_id: accountToken.x_user_id,
           account_id: post.account_id,
         }),
+        timeout: 45000,
+        maxRetries: 2,
       }
     );
 

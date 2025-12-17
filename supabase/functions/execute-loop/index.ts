@@ -172,11 +172,14 @@ async function executePostLoop(sb: any, loop: Loop, traceId: string) {
 
     console.log(`[${traceId}] Post loop ${loop.id}: using ${numAccounts} accounts`);
 
+    let currentTemplateIndex = loop.last_used_template_index || 0;
+
     for (let i = 0; i < numAccounts; i++) {
       const account = accounts[i];
 
-      // Select template
-      const { template, nextIndex } = selectTemplate(loop);
+      // Select template with current index
+      const { template, nextIndex } = selectTemplate(loop, currentTemplateIndex);
+      currentTemplateIndex = nextIndex;
       result.next_template_index = nextIndex;
 
       if (!template) {
@@ -184,23 +187,25 @@ async function executePostLoop(sb: any, loop: Loop, traceId: string) {
         continue;
       }
 
-      // Fetch template with items
+      // Fetch template
       const { data: tmpl, error: tmplError } = await sb
-        .from('post_templates')
-        .select('*, post_template_items(*)')
+        .from('templates')
+        .select('content')
         .eq('id', template.id)
+        .eq('is_active', true)
         .single();
 
       if (tmplError || !tmpl) {
         console.error(`[${traceId}] Template fetch error:`, tmplError);
+        result.errors.push(`Template ${template.id} not found or inactive`);
         continue;
       }
 
-      // Select content from template
-      const content = selectWeightedItem(tmpl.post_template_items)?.content || tmpl.content;
+      const content = tmpl.content;
 
       if (!content) {
         console.warn(`[${traceId}] No content in template ${template.id}`);
+        result.errors.push(`Template ${template.id} has no content`);
         continue;
       }
 
@@ -276,35 +281,41 @@ async function executeReplyLoop(sb: any, loop: Loop, traceId: string) {
     // Execute specified number of replies
     const count = Math.min(loop.execution_count || 5, tweets.length);
 
+    let currentTemplateIndex = loop.last_used_template_index || 0;
+
     for (let i = 0; i < count; i++) {
       // Random account selection for replies
       const account = accounts[Math.floor(Math.random() * accounts.length)];
 
-      // Select template
-      const { template } = selectTemplate(loop);
+      // Select template with current index
+      const { template, nextIndex } = selectTemplate(loop, currentTemplateIndex);
+      currentTemplateIndex = nextIndex;
+      result.next_template_index = nextIndex;
 
       if (!template) {
         console.warn(`[${traceId}] No template selected for reply loop ${loop.id}`);
         continue;
       }
 
-      // Fetch template with items
+      // Fetch template
       const { data: tmpl, error: tmplError } = await sb
-        .from('post_templates')
-        .select('*, post_template_items(*)')
+        .from('templates')
+        .select('content')
         .eq('id', template.id)
+        .eq('is_active', true)
         .single();
 
       if (tmplError || !tmpl) {
         console.error(`[${traceId}] Template fetch error:`, tmplError);
+        result.errors.push(`Template ${template.id} not found or inactive`);
         continue;
       }
 
-      // Select content from template
-      const content = selectWeightedItem(tmpl.post_template_items)?.content || tmpl.content;
+      const content = tmpl.content;
 
       if (!content) {
         console.warn(`[${traceId}] No content in template ${template.id}`);
+        result.errors.push(`Template ${template.id} has no content`);
         continue;
       }
 
@@ -370,45 +381,42 @@ async function selectAccounts(sb: any, loop: Loop) {
     query = query.overlaps('tags', loop.allowed_account_tags);
   }
 
-  const { data } = await query;
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to select accounts: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('No active accounts found matching loop criteria');
+  }
 
   // Shuffle accounts randomly
-  return (data || []).sort(() => Math.random() - 0.5);
+  return data.sort(() => Math.random() - 0.5);
 }
 
-function selectTemplate(loop: Loop) {
+function selectTemplate(loop: Loop, currentIndex: number = 0) {
   if (!loop.template_ids?.length) {
     return { template: null, nextIndex: 0 };
   }
 
   if (loop.selection_mode === 'sequential') {
-    const idx = loop.last_used_template_index % loop.template_ids.length;
+    const idx = currentIndex % loop.template_ids.length;
     return {
       template: { id: loop.template_ids[idx] },
       nextIndex: (idx + 1) % loop.template_ids.length
     };
   }
 
-  // Random selection
+  // Random selection - index doesn't change for random mode
   return {
     template: { id: loop.template_ids[Math.floor(Math.random() * loop.template_ids.length)] },
-    nextIndex: loop.last_used_template_index
+    nextIndex: currentIndex
   };
 }
 
-function selectWeightedItem(items: any[]) {
-  if (!items?.length) return null;
-
-  const totalWeight = items.reduce((sum, item) => sum + (item.weight || 1), 0);
-  let random = Math.random() * totalWeight;
-
-  for (const item of items) {
-    random -= item.weight || 1;
-    if (random <= 0) return item;
-  }
-
-  return items[0];
-}
+// Note: Weighted item selection removed - templates table doesn't support post_template_items
+// If weighted selection is needed, implement it within the templates.content field using JSON structure
 
 async function findTargetTweets(sb: any, loop: Loop, traceId: string) {
   try {
@@ -418,6 +426,7 @@ async function findTargetTweets(sb: any, loop: Loop, traceId: string) {
       if (tweetId) {
         return [{ id: tweetId }];
       }
+      console.error(`[${traceId}] Invalid tweet URL format: ${loop.target_value}. Expected format: https://twitter.com/username/status/123456789`);
       return [];
     }
 

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
 
 interface SyncResult {
   token_id: string;
@@ -21,8 +22,9 @@ serve(async (req) => {
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+    const SUPABASE_URL = getRequiredEnv('SUPABASE_URL');
+    const SERVICE_ROLE_KEY = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -80,12 +82,14 @@ serve(async (req) => {
 
         // Fetch user data from Twitter API
         const userFields = 'public_metrics,verified';
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `https://api.twitter.com/2/users/me?user.fields=${userFields}`,
           {
             headers: {
               'Authorization': `Bearer ${token.access_token}`,
             },
+            timeout: 30000,
+            maxRetries: 2,
           }
         );
 

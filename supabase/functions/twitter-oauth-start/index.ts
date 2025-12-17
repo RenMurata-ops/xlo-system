@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { validateEnv, getRequiredEnv } from '../_shared/fetch-with-timeout.ts';
 
 // PKCE helper functions
 function generateRandomString(length: number): string {
@@ -54,10 +55,13 @@ serve(async (req) => {
       throw new Error('Invalid account_type. Must be main, spam, or follow');
     }
 
+    // Validate required environment variables
+    validateEnv(['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY']);
+
     // Initialize Supabase client with anon key to verify the user
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = getRequiredEnv('SUPABASE_URL');
+    const supabaseAnonKey = getRequiredEnv('SUPABASE_ANON_KEY');
+    const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
 
     // First, verify the user with the anon key
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
@@ -101,7 +105,7 @@ serve(async (req) => {
 
     // Save session to database with account linking info
     const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutes expiry
+    expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30 minutes expiry for better UX
 
     const { error: sessionError } = await supabase
       .from('oauth_sessions')

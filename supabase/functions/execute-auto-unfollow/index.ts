@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,8 +12,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+    const supabaseUrl = getRequiredEnv('SUPABASE_URL');
+    const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get pending unfollows that are due
@@ -67,7 +69,7 @@ Deno.serve(async (req) => {
         }
 
         // Call Twitter API to unfollow
-        const unfollowResponse = await fetch(
+        const unfollowResponse = await fetchWithTimeout(
           `https://api.twitter.com/2/users/${unfollow.follower_account_id}/following/${unfollow.target_twitter_id}`,
           {
             method: 'DELETE',
@@ -75,6 +77,8 @@ Deno.serve(async (req) => {
               'Authorization': `Bearer ${accessToken}`,
               'Content-Type': 'application/json',
             },
+            timeout: 30000,
+            maxRetries: 2,
           }
         );
 

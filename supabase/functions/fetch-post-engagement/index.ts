@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,8 +12,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+    const supabaseUrl = getRequiredEnv('SUPABASE_URL');
+    const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { post_id } = await req.json();
@@ -48,12 +50,14 @@ Deno.serve(async (req) => {
     }
 
     // Fetch tweet metrics from Twitter API
-    const tweetResponse = await fetch(
+    const tweetResponse = await fetchWithTimeout(
       `https://api.twitter.com/2/tweets/${post.twitter_id}?tweet.fields=public_metrics`,
       {
         headers: {
           'Authorization': `Bearer ${tokenData.access_token}`,
         },
+        timeout: 30000,
+        maxRetries: 2,
       }
     );
 

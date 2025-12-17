@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,8 +12,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+    const supabaseUrl = getRequiredEnv('SUPABASE_URL');
+    const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get all active CTA triggers
@@ -68,12 +70,14 @@ Deno.serve(async (req) => {
         }
 
         // Fetch latest tweets from target account
-        const userResponse = await fetch(
+        const userResponse = await fetchWithTimeout(
           `https://api.twitter.com/2/users/by/username/${targetAccount.handle}?user.fields=id`,
           {
             headers: {
               'Authorization': `Bearer ${targetToken.access_token}`,
             },
+            timeout: 30000,
+            maxRetries: 2,
           }
         );
 
@@ -90,12 +94,14 @@ Deno.serve(async (req) => {
         }
 
         // Fetch user's tweets
-        const tweetsResponse = await fetch(
+        const tweetsResponse = await fetchWithTimeout(
           `https://api.twitter.com/2/users/${userId}/tweets?max_results=5&exclude=retweets,replies`,
           {
             headers: {
               'Authorization': `Bearer ${targetToken.access_token}`,
             },
+            timeout: 30000,
+            maxRetries: 2,
           }
         );
 
@@ -189,7 +195,7 @@ Deno.serve(async (req) => {
         }
 
         // Send reply
-        const replyResponse = await fetch(
+        const replyResponse = await fetchWithTimeout(
           'https://api.twitter.com/2/tweets',
           {
             method: 'POST',
@@ -203,6 +209,8 @@ Deno.serve(async (req) => {
                 in_reply_to_tweet_id: execution.target_tweet_id,
               },
             }),
+            timeout: 30000,
+            maxRetries: 2,
           }
         );
 

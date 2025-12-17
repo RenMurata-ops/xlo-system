@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 
 interface Loop {
   id: string;
@@ -52,6 +53,8 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [error, setError] = useState('');
   const supabase = createClient();
 
@@ -85,6 +88,7 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
   }, [formData.loop_type]);
 
   async function loadAccounts() {
+    setLoadingAccounts(true);
     try {
       const { data, error } = await supabase
         .from('main_accounts')
@@ -92,14 +96,23 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
         .eq('is_active', true)
         .order('handle');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading accounts:', error);
+        toast.error('アカウントの読み込みに失敗しました');
+        return;
+      }
+
       setAccounts(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading accounts:', error);
+      toast.error(`アカウントの読み込みエラー: ${error.message || '不明なエラー'}`);
+    } finally {
+      setLoadingAccounts(false);
     }
   }
 
   async function loadTemplates() {
+    setLoadingTemplates(true);
     try {
       // Load templates based on loop type
       let templateType = 'post';
@@ -114,10 +127,18 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
         .eq('template_type', templateType)
         .order('template_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading templates:', error);
+        toast.error('テンプレートの読み込みに失敗しました');
+        return;
+      }
+
       setTemplates(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading templates:', error);
+      toast.error(`テンプレートの読み込みエラー: ${error.message || '不明なエラー'}`);
+    } finally {
+      setLoadingTemplates(false);
     }
   }
 

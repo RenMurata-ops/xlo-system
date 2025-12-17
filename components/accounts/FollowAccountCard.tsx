@@ -6,7 +6,7 @@ interface FollowAccount {
   id: string;
   target_handle: string;
   target_name: string | null;
-  follower_count: number | null;
+  followers_count: number | null;
   priority: number;
   category: string | null;
   tags: string[] | null;
@@ -120,7 +120,7 @@ export default function FollowAccountCard({
             <span>フォロワー</span>
           </div>
           <span className="font-semibold text-gray-900">
-            {account.follower_count?.toLocaleString() || '不明'}
+            {account.followers_count?.toLocaleString() || '不明'}
           </span>
         </div>
 

@@ -12,7 +12,7 @@ interface FollowAccount {
   id: string;
   target_handle: string;
   target_name: string | null;
-  follower_count: number | null;
+  followers_count: number | null;
   priority: number;
   category: string | null;
   tags: string[] | null;

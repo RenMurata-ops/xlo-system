@@ -8,7 +8,7 @@ interface FollowAccount {
   id: string;
   target_handle: string;
   target_name: string | null;
-  follower_count: number | null;
+  followers_count: number | null;
   priority: number;
   category: string | null;
   tags: string[] | null;
@@ -25,7 +25,7 @@ export default function FollowAccountForm({ account, onClose }: FollowAccountFor
   const [formData, setFormData] = useState({
     target_handle: '',
     target_name: '',
-    follower_count: 0,
+    followers_count: 0,
     priority: 5,
     category: '',
     tags: '',
@@ -41,7 +41,7 @@ export default function FollowAccountForm({ account, onClose }: FollowAccountFor
       setFormData({
         target_handle: account.target_handle,
         target_name: account.target_name || '',
-        follower_count: account.follower_count || 0,
+        followers_count: account.followers_count || 0,
         priority: account.priority,
         category: account.category || '',
         tags: account.tags ? account.tags.join(', ') : '',
@@ -68,7 +68,7 @@ export default function FollowAccountForm({ account, onClose }: FollowAccountFor
       const payload = {
         target_handle: formData.target_handle.replace('@', ''),
         target_name: formData.target_name || null,
-        follower_count: formData.follower_count || null,
+        followers_count: formData.followers_count || null,
         priority: formData.priority,
         category: formData.category || null,
         tags: tags.length > 0 ? tags : null,
@@ -162,8 +162,8 @@ export default function FollowAccountForm({ account, onClose }: FollowAccountFor
               <input
                 type="number"
                 min="0"
-                value={formData.follower_count}
-                onChange={(e) => setFormData({ ...formData, follower_count: parseInt(e.target.value) || 0 })}
+                value={formData.followers_count}
+                onChange={(e) => setFormData({ ...formData, followers_count: parseInt(e.target.value) || 0 })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>

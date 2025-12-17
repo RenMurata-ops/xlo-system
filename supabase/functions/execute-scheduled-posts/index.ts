@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
 
 serve(async (req) => {
   const corsHeaders = {
@@ -15,8 +16,9 @@ serve(async (req) => {
   console.log(`[${traceId}] Starting scheduled posts execution`);
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+    const supabaseUrl = getRequiredEnv('SUPABASE_URL');
+    const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get posts that are scheduled and past their scheduled time
@@ -79,7 +81,7 @@ serve(async (req) => {
         }
 
         // Post to Twitter via proxy
-        const proxyResponse = await fetch(
+        const proxyResponse = await fetchWithTimeout(
           `${supabaseUrl}/functions/v1/twitter-api-proxy`,
           {
             method: 'POST',
@@ -95,6 +97,8 @@ serve(async (req) => {
               account_id: post.account_id,
               user_id: post.user_id,
             }),
+            timeout: 45000,
+            maxRetries: 2,
           }
         );
 
