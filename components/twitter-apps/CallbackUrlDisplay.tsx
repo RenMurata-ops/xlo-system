@@ -29,25 +29,25 @@ export default function CallbackUrlDisplay() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <div className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2">
-          <code className="text-sm text-gray-300 font-mono break-all">
+      <div className="space-y-2">
+        <div className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 overflow-x-auto">
+          <code className="text-sm text-gray-300 font-mono whitespace-nowrap block">
             {callbackUrl}
           </code>
         </div>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
         >
           {copied ? (
             <>
               <Check size={16} />
-              <span className="text-sm">コピー済み</span>
+              <span className="text-sm font-semibold">コピー済み</span>
             </>
           ) : (
             <>
               <Copy size={16} />
-              <span className="text-sm">コピー</span>
+              <span className="text-sm font-semibold">URLをコピー</span>
             </>
           )}
         </button>
