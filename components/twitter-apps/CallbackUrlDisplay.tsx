@@ -30,8 +30,8 @@ export default function CallbackUrlDisplay() {
       </div>
 
       <div className="space-y-2">
-        <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-600">
-          <code className="text-xs text-gray-300 font-mono whitespace-nowrap block select-all">
+        <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5">
+          <code className="text-xs text-gray-300 font-mono break-all block select-all">
             {callbackUrl}
           </code>
         </div>
