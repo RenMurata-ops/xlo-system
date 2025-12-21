@@ -319,6 +319,21 @@ async function searchTwitter(sb: any, rule: EngagementRule, traceId: string) {
       };
       break;
 
+    case 'url':
+      // Extract tweet ID from URL (e.g., https://twitter.com/user/status/1234567890)
+      const tweetIdMatch = rule.search_query.match(/status\/(\d+)/);
+      if (!tweetIdMatch) {
+        throw new Error('Invalid Twitter URL: could not extract tweet ID');
+      }
+      const tweetId = tweetIdMatch[1];
+      endpoint = `/2/tweets/${tweetId}`;
+      params = {
+        'tweet.fields': 'author_id,created_at,public_metrics',
+        'user.fields': 'created_at,public_metrics,verified',
+        expansions: 'author_id',
+      };
+      break;
+
     default:
       throw new Error(`Unsupported search type: ${rule.search_type}`);
   }
@@ -337,10 +352,15 @@ async function searchTwitter(sb: any, rule: EngagementRule, traceId: string) {
   });
 
   if (proxyError || !proxyResponse?.success) {
-    throw new Error(`Twitter search failed: ${proxyError?.message || 'Unknown error'}`);
+    throw new Error(`Twitter search failed: ${proxyError?.message || proxyResponse?.error || 'Unknown error'}`);
   }
 
-  const results = proxyResponse.data?.data || [];
+  // Handle URL search (single tweet) vs other searches (array of tweets)
+  let results = proxyResponse.data?.data || [];
+  if (rule.search_type === 'url' && !Array.isArray(results)) {
+    // URL search returns a single tweet object, wrap it in an array
+    results = results ? [results] : [];
+  }
   const users = proxyResponse.data?.includes?.users || [];
 
   // Attach user data to tweets
@@ -485,7 +505,9 @@ async function executeAction(
   });
 
   if (proxyError || !proxyResponse?.success) {
-    throw new Error(`Action failed: ${proxyError?.message || 'Unknown error'}`);
+    const errorDetail = proxyError?.message || proxyResponse?.error || JSON.stringify(proxyResponse) || 'Unknown error';
+    console.error(`[${traceId}] Action ${actionType} failed:`, errorDetail);
+    throw new Error(`Action failed: ${errorDetail}`);
   }
 
   // Record in posts table if it's a reply action
