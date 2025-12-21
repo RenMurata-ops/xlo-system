@@ -320,10 +320,11 @@ async function searchTwitter(sb: any, rule: EngagementRule, traceId: string) {
       break;
 
     case 'url':
-      // Extract tweet ID from URL (e.g., https://twitter.com/user/status/1234567890)
-      const tweetIdMatch = rule.search_query.match(/status\/(\d+)/);
+      // Extract tweet ID from URL (supports twitter.com, x.com, and mobile.twitter.com)
+      // Examples: https://twitter.com/user/status/123, https://x.com/user/status/123
+      const tweetIdMatch = rule.search_query.match(/(?:twitter\.com|x\.com)\/.*?\/status\/(\d+)/);
       if (!tweetIdMatch) {
-        throw new Error('Invalid Twitter URL: could not extract tweet ID');
+        throw new Error(`Invalid Twitter URL: could not extract tweet ID from "${rule.search_query}". Expected format: https://twitter.com/user/status/123456 or https://x.com/user/status/123456`);
       }
       const tweetId = tweetIdMatch[1];
       endpoint = `/2/tweets/${tweetId}`;
