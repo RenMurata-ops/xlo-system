@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, FileText, MessageCircle, Megaphone, Eye } from 'lucide-react';
+import { X, FileText, MessageCircle, Megaphone, Eye, Send } from 'lucide-react';
 
 interface Template {
   id: string;
   template_name: string;
-  template_type: 'post' | 'reply' | 'cta';
+  template_type: 'post' | 'reply' | 'cta' | 'dm';
   content: string;
   variables: string[] | null;
   category: string | null;
@@ -55,6 +55,7 @@ export default function TemplatePreview({ template, onClose }: TemplatePreviewPr
       case 'post': return <FileText size={20} />;
       case 'reply': return <MessageCircle size={20} />;
       case 'cta': return <Megaphone size={20} />;
+      case 'dm': return <Send size={20} />;
       default: return null;
     }
   };
@@ -64,6 +65,7 @@ export default function TemplatePreview({ template, onClose }: TemplatePreviewPr
       case 'post': return '投稿';
       case 'reply': return 'リプライ';
       case 'cta': return 'CTA';
+      case 'dm': return 'DM';
       default: return type;
     }
   };
@@ -73,12 +75,13 @@ export default function TemplatePreview({ template, onClose }: TemplatePreviewPr
       case 'post': return 'bg-blue-100 text-blue-800';
       case 'reply': return 'bg-green-100 text-green-800';
       case 'cta': return 'bg-purple-100 text-purple-800';
+      case 'dm': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const charCount = previewContent.length;
-  const maxChars = 280;
+  const maxChars = template.template_type === 'dm' ? 10000 : 280;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

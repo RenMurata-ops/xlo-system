@@ -1,0 +1,35 @@
+# Supabase Configuration File
+# https://supabase.com/docs/guides/cli/config
+
+[functions.twitter-oauth-callback-v2]
+verify_jwt = false
+
+[functions.twitter-oauth-start]
+verify_jwt = false
+
+[functions.execute-auto-engagement]
+verify_jwt = false
+[functions.execute-targeted-engagement]
+verify_jwt = false
+[functions.execute-cta-loop]
+verify_jwt = false
+[functions.execute-loop]
+verify_jwt = false
+[functions.execute-bulk-posts]
+verify_jwt = false
+[functions.execute-scheduled-posts]
+verify_jwt = false
+[functions.execute-single-post]
+verify_jwt = false
+[functions.refresh-tokens]
+verify_jwt = false
+[functions.refresh-token]
+verify_jwt = false
+[functions.refresh-twitter-token]
+verify_jwt = false
+[functions.detect-followbacks]
+verify_jwt = false
+[functions.dispatch-dms]
+verify_jwt = false
+# Note: Set function size to "medium" or "large" in Supabase Dashboard
+# Dashboard > Edge Functions > execute-auto-engagement > Settings > Compute Size

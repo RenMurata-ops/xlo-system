@@ -6,7 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 interface Template {
   id: string;
   template_name: string;
-  template_type: 'post' | 'reply' | 'cta';
+  template_type: 'post' | 'reply' | 'cta' | 'dm';
   content: string;
   variables: string[] | null;
   category: string | null;
@@ -26,27 +26,24 @@ const COLORS = {
   post: '#3B82F6',    // blue
   reply: '#10B981',   // green
   cta: '#A855F7',     // purple
+  dm: '#FB923C',      // orange
 };
+
+const TEMPLATE_TYPES = [
+  { key: 'post' as const, label: '投稿' },
+  { key: 'reply' as const, label: 'リプライ' },
+  { key: 'cta' as const, label: 'CTA' },
+  { key: 'dm' as const, label: 'DM' },
+];
 
 export default function TemplateStats({ templates, onClose }: TemplateStatsProps) {
   // Usage by type
-  const usageByType = [
-    {
-      name: '投稿',
-      value: templates.filter(t => t.template_type === 'post').reduce((sum, t) => sum + t.usage_count, 0),
-      count: templates.filter(t => t.template_type === 'post').length,
-    },
-    {
-      name: 'リプライ',
-      value: templates.filter(t => t.template_type === 'reply').reduce((sum, t) => sum + t.usage_count, 0),
-      count: templates.filter(t => t.template_type === 'reply').length,
-    },
-    {
-      name: 'CTA',
-      value: templates.filter(t => t.template_type === 'cta').reduce((sum, t) => sum + t.usage_count, 0),
-      count: templates.filter(t => t.template_type === 'cta').length,
-    },
-  ];
+  const usageByType = TEMPLATE_TYPES.map(({ key, label }) => ({
+    key,
+    name: label,
+    value: templates.filter(t => t.template_type === key).reduce((sum, t) => sum + t.usage_count, 0),
+    count: templates.filter(t => t.template_type === key).length,
+  }));
 
   // Top 10 most used templates
   const topTemplates = [...templates]
@@ -149,8 +146,8 @@ export default function TemplateStats({ templates, onClose }: TemplateStatsProps
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {usageByType.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={Object.values(COLORS)[index]} />
+                    {usageByType.map((entry) => (
+                      <Cell key={entry.key} fill={COLORS[entry.key]} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -233,14 +230,14 @@ export default function TemplateStats({ templates, onClose }: TemplateStatsProps
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {usageByType.map((type, idx) => {
-                    const typeKey = ['post', 'reply', 'cta'][idx] as 'post' | 'reply' | 'cta';
+                  {usageByType.map((type) => {
+                    const typeKey = type.key;
                     const typeTemplates = templates.filter(t => t.template_type === typeKey);
                     const avgTypeUsage = type.count > 0 ? (type.value / type.count).toFixed(1) : '0';
                     const activeCount = typeTemplates.filter(t => t.is_active).length;
 
                     return (
-                      <tr key={idx}>
+                      <tr key={typeKey}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded text-sm font-medium`} style={{ backgroundColor: COLORS[typeKey] + '20', color: COLORS[typeKey] }}>
                             {type.name}

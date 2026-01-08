@@ -360,7 +360,7 @@ export default function SpamAccountsPage() {
   }
 
   const activeAccounts = accounts.filter(acc => acc.is_active).length;
-  const totalEngagements = accounts.reduce((sum, acc) => sum + acc.total_engagements, 0);
+  const totalEngagements = accounts.reduce((sum, acc) => sum + (acc.total_engagements || 0), 0);
   const avgSuccessRate = accounts.length > 0
     ? (accounts.reduce((sum, acc) => sum + (acc.success_rate || 0), 0) / accounts.length).toFixed(1)
     : '0';

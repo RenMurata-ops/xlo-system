@@ -21,6 +21,7 @@ interface Post {
   created_at: string;
   updated_at: string;
   twitter_id?: string;
+  error_message?: string | null;
 }
 
 export default function PostsPage() {
@@ -36,6 +37,7 @@ export default function PostsPage() {
   const [dryRun, setDryRun] = useState(false);
   const [postingNow, setPostingNow] = useState<Record<string, boolean>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [accountMap, setAccountMap] = useState<Record<string, string>>({});
   const supabase = createClient();
 
   useEffect(() => {
@@ -45,13 +47,20 @@ export default function PostsPage() {
   async function loadPosts(isInitialLoad = false) {
     try {
       setRefreshing(true);
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [postsRes, accountsRes] = await Promise.all([
+        supabase.from('posts').select('*').order('created_at', { ascending: false }),
+        supabase.from('main_accounts').select('id, handle')
+      ]);
 
-      if (error) throw error;
-      setPosts(data || []);
+      if (postsRes.error) throw postsRes.error;
+      if (accountsRes.error) throw accountsRes.error;
+
+      const map: Record<string, string> = {};
+      (accountsRes.data || []).forEach((acc: any) => {
+        map[acc.id] = acc.handle;
+      });
+      setAccountMap(map);
+      setPosts(postsRes.data || []);
       if (!isInitialLoad) {
         toast.success('投稿一覧を更新しました');
       }
@@ -419,6 +428,7 @@ export default function PostsPage() {
             <PostCard
               key={post.id}
               post={post}
+              accountLabel={accountMap[post.account_id]}
               onEdit={() => handleEdit(post)}
               onDelete={() => handleDelete(post.id)}
               onStatusChange={(status) => handleStatusChange(post.id, status)}

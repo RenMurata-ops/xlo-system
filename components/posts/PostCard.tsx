@@ -21,6 +21,7 @@ interface Post {
   quote_count?: number;
   impression_count?: number;
   engagement_updated_at?: string;
+  error_message?: string | null;
 }
 
 interface PostCardProps {
@@ -33,6 +34,7 @@ interface PostCardProps {
   postingNow?: boolean;
   onRefreshEngagement?: () => void;
   refreshingEngagement?: boolean;
+  accountLabel?: string;
 }
 
 export default function PostCard({
@@ -44,7 +46,8 @@ export default function PostCard({
   onPostNow,
   postingNow = false,
   onRefreshEngagement,
-  refreshingEngagement = false
+  refreshingEngagement = false,
+  accountLabel,
 }: PostCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -75,6 +78,9 @@ export default function PostCard({
           <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(post.status)}`}>
             {getStatusLabel(post.status)}
           </span>
+          {accountLabel && (
+            <span className="text-xs text-gray-300">@{accountLabel}</span>
+          )}
           {post.tags && post.tags.length > 0 && (
             <span className="px-2 py-1 rounded text-xs bg-purple-900/50 text-purple-300">
               {post.tags[0]}
@@ -95,6 +101,12 @@ export default function PostCard({
       </div>
 
       <div className="p-6 space-y-3 bg-gray-900/50">
+        {post.status === 'failed' && post.error_message && (
+          <div className="text-sm text-red-400 bg-red-900/30 border border-red-700 rounded p-3">
+            エラー: {post.error_message}
+          </div>
+        )}
+
         {post.scheduled_at && (
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <Calendar size={16} />

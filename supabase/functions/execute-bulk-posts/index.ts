@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 interface BulkPostRequest {
   user_id: string;
@@ -31,10 +32,7 @@ function selectByWeight<T extends { weight: number }>(items: T[]): T {
 }
 
 serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+  const corsHeaders = getCorsHeaders();
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -157,18 +155,26 @@ serve(async (req) => {
               content = `${content}\n\n${cta.content}`;
 
               // Update CTA usage count
-              await supabase
+              const { error: ctaUpdateError } = await supabase
                 .from('cta_templates')
                 .update({ usage_count: cta.usage_count + 1 })
                 .eq('id', cta.id);
+
+              if (ctaUpdateError) {
+                console.error(`Failed to update CTA usage count: ${ctaUpdateError.message}`);
+              }
             }
           }
 
           // Update template usage count
-          await supabase
+          const { error: templateUpdateError } = await supabase
             .from('post_templates')
             .update({ usage_count: template.usage_count + 1 })
             .eq('id', template.id);
+
+          if (templateUpdateError) {
+            console.error(`Failed to update template usage count: ${templateUpdateError.message}`);
+          }
 
           // Save generated content
           await supabase
@@ -255,6 +261,24 @@ serve(async (req) => {
           if (postError.message?.includes('Duplicate post within 24h')) {
             throw new Error(`Duplicate post detected: ${postError.message}`);
           }
+
+          // Post record creation failed - update queue with error
+          await supabase
+            .from('bulk_post_queue')
+            .update({
+              status: 'failed',
+              error_message: `Failed to create post record: ${postError.message}`,
+              tweet_id: tweetId,
+              executed_at: new Date().toISOString(),
+            })
+            .eq('id', queueItem.id);
+
+          throw new Error(`Failed to create post record: ${postError.message}`);
+        }
+
+        // Verify post was created
+        if (!post) {
+          throw new Error('Post record not created');
         }
 
         // Update queue item
@@ -263,7 +287,7 @@ serve(async (req) => {
           .update({
             status: 'success',
             tweet_id: tweetId,
-            post_id: post?.id,
+            post_id: post.id,
             executed_at: new Date().toISOString(),
           })
           .eq('id', queueItem.id);

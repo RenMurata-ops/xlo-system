@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Shuffle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { Database } from '@/types/database';
 
 interface SpamAccount {
   id: string;
@@ -31,7 +32,12 @@ export default function SpamAccountForm({ account, onClose }: SpamAccountFormPro
     notes: '',
     is_active: true,
   });
-  const [proxies, setProxies] = useState<any[]>([]);
+  interface ProxyOption {
+    id: string;
+    proxy_name: string;
+    is_active: boolean;
+  }
+  const [proxies, setProxies] = useState<ProxyOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [assigningProxy, setAssigningProxy] = useState(false);
   const [error, setError] = useState('');

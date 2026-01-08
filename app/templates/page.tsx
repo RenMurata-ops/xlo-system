@@ -12,7 +12,7 @@ import TemplateStats from '@/components/templates/TemplateStats';
 interface Template {
   id: string;
   template_name: string;
-  template_type: 'post' | 'reply' | 'cta';
+  template_type: 'post' | 'reply' | 'cta' | 'dm';
   content: string;
   variables: string[] | null;
   category: string | null;
@@ -113,6 +113,7 @@ export default function TemplatesPage() {
     { value: 'post', label: '投稿' },
     { value: 'reply', label: 'リプライ' },
     { value: 'cta', label: 'CTA' },
+    { value: 'dm', label: 'DM' },
   ];
 
   const filteredTemplates = filterType === 'all'
@@ -122,6 +123,7 @@ export default function TemplatesPage() {
   const postTemplates = templates.filter(t => t.template_type === 'post').length;
   const replyTemplates = templates.filter(t => t.template_type === 'reply').length;
   const ctaTemplates = templates.filter(t => t.template_type === 'cta').length;
+  const dmTemplates = templates.filter(t => t.template_type === 'dm').length;
   const totalUsage = templates.reduce((sum, t) => sum + t.usage_count, 0);
 
   if (loading) {
@@ -138,7 +140,7 @@ export default function TemplatesPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">テンプレート管理</h1>
           <p className="text-gray-600 mt-2">
-            投稿・リプライ・CTAのテンプレートを管理します
+            投稿・リプライ・CTA・DMのテンプレートを管理します
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -166,7 +168,7 @@ export default function TemplatesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="text-sm text-gray-600 mb-1">投稿テンプレート</div>
           <div className="text-3xl font-bold text-blue-600">{postTemplates}</div>
@@ -178,6 +180,10 @@ export default function TemplatesPage() {
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="text-sm text-gray-600 mb-1">CTAテンプレート</div>
           <div className="text-3xl font-bold text-purple-600">{ctaTemplates}</div>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="text-sm text-gray-600 mb-1">DMテンプレート</div>
+          <div className="text-3xl font-bold text-orange-600">{dmTemplates}</div>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="text-sm text-gray-600 mb-1">総使用回数</div>

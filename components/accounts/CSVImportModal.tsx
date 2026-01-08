@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { X, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { Database } from '@/types/database';
 
 interface CSVImportModalProps {
   onClose: () => void;
@@ -131,9 +132,13 @@ export default function CSVImportModal({ onClose, onImportComplete, accountType 
       const handleField = getHandleField();
       const nameField = getNameField();
 
+      type MainAccountInsert = Database['public']['Tables']['main_accounts']['Insert'];
+      type SpamAccountInsert = Database['public']['Tables']['spam_accounts']['Insert'];
+      type FollowAccountInsert = Database['public']['Tables']['follow_accounts']['Insert'];
+
       for (const account of preview) {
         try {
-          const insertData: any = {
+          const insertData: Partial<MainAccountInsert | SpamAccountInsert | FollowAccountInsert> & Record<string, unknown> = {
             user_id: user.id,
             [handleField]: account.screen,
             [nameField]: account.screen, // Use screen as default name
@@ -197,6 +202,16 @@ export default function CSVImportModal({ onClose, onImportComplete, accountType 
           >
             <X size={24} />
           </button>
+        </div>
+        <div className="px-6 pt-3">
+          <a
+            href="data:text/csv;charset=utf-8,screen,password,mail,mailpw,reg_number,auth,%E4%BA%8C%E6%AE%B5%E9%9A%8E%E8%AA%8D%E8%A8%BC%E3%82%B3%E3%83%BC%E3%83%89%E5%8F%96%E5%BE%97URL,%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E3%82%B3%E3%83%BC%E3%83%89\nexample_handle,pass123,example@mail.com,mailpass,reg123,auth-token,https://example.com/2fa,code1 code2 code3"
+            download="account_import_sample.csv"
+            className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+          >
+            <FileText size={16} />
+            サンプルCSVをダウンロード
+          </a>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto">

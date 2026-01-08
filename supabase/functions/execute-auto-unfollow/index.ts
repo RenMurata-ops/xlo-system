@@ -1,10 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = getCorsHeaders();
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -52,7 +50,7 @@ Deno.serve(async (req) => {
         // Get account token for the follower account
         const { data: tokenData, error: tokenError } = await supabase
           .from('account_tokens')
-          .select('access_token, refresh_token, expires_at')
+          .select('access_token, refresh_token, expires_at, x_user_id')
           .eq('account_id', unfollow.follower_account_id)
           .single();
 
@@ -68,9 +66,9 @@ Deno.serve(async (req) => {
           throw new Error('Token expired, refresh not implemented');
         }
 
-        // Call Twitter API to unfollow
+        // Call Twitter API to unfollow (use x_user_id, not account_id UUID)
         const unfollowResponse = await fetchWithTimeout(
-          `https://api.twitter.com/2/users/${unfollow.follower_account_id}/following/${unfollow.target_twitter_id}`,
+          `https://api.twitter.com/2/users/${tokenData.x_user_id}/following/${unfollow.target_twitter_id}`,
           {
             method: 'DELETE',
             headers: {

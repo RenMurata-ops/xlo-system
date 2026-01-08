@@ -4,6 +4,7 @@ const nextConfig = {
   images: {
     domains: ['pbs.twimg.com', 'abs.twimg.com'],
   },
+  outputFileTracingRoot: __dirname,
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',

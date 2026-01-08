@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { Database } from '@/types/database';
 
 interface EngagementRule {
   id: string;
@@ -75,8 +76,19 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
     max_replies: '',
     has_engagement: false,
   });
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [templates, setTemplates] = useState<any[]>([]);
+  interface AccountOption {
+    id: string;
+    handle: string;
+    name: string | null;
+    is_active: boolean;
+  }
+  interface TemplateOption {
+    id: string;
+    template_name: string;
+    template_type: string;
+  }
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const supabase = createClient();
@@ -560,7 +572,7 @@ export default function EngagementRuleForm({ rule, onClose }: EngagementRuleForm
                   <option value="">テンプレートを選択</option>
                   {templates.map(tmpl => (
                     <option key={tmpl.id} value={tmpl.id}>
-                      {tmpl.name} ({tmpl.template_type})
+                      {tmpl.template_name} ({tmpl.template_type})
                     </option>
                   ))}
                 </select>

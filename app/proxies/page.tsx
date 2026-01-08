@@ -9,18 +9,19 @@ import ProxyForm from '@/components/proxies/ProxyForm';
 
 interface Proxy {
   id: string;
-  proxy_name: string;
-  proxy_type: 'http' | 'https' | 'socks5';
-  host: string;
-  port: number;
+  proxy_name: string | null;
+  proxy_type: 'http' | 'https' | 'socks5' | 'nordvpn';
+  proxy_url: string | null;
+  host: string | null;
+  port: number | null;
   username: string | null;
   password: string | null;
   country: string | null;
   is_active: boolean;
-  last_tested_at: string | null;
-  test_status: 'success' | 'failed' | 'untested';
+  last_checked_at: string | null;
+  test_status: 'success' | 'failed' | 'untested' | null;
   response_time_ms: number | null;
-  assigned_accounts_count: number;
+  assigned_accounts_count: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -98,7 +99,7 @@ export default function ProxiesPage() {
       const { error } = await supabase
         .from('proxies')
         .update({
-          last_tested_at: new Date().toISOString(),
+          last_checked_at: new Date().toISOString(),
           test_status: 'success',
           response_time_ms: Math.floor(Math.random() * 1000) + 100
         })
@@ -127,7 +128,7 @@ export default function ProxiesPage() {
 
   const activeProxies = proxies.filter(p => p.is_active).length;
   const workingProxies = proxies.filter(p => p.test_status === 'success').length;
-  const totalAssignments = proxies.reduce((sum, p) => sum + p.assigned_accounts_count, 0);
+  const totalAssignments = proxies.reduce((sum, p) => sum + (p.assigned_accounts_count || 0), 0);
   const avgResponseTime = proxies.length > 0
     ? (proxies.reduce((sum, p) => sum + (p.response_time_ms || 0), 0) / proxies.length).toFixed(0)
     : '0';

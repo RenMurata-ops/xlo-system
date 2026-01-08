@@ -10,6 +10,16 @@
       "name": "execute-auto-engagement",
       "schedule": "*/15 * * * *",
       "description": "Execute auto engagement rules every 15 minutes"
+    },
+    {
+      "name": "detect-followbacks",
+      "schedule": "*/15 * * * *",
+      "description": "Detect new followers for follow-back DM automation"
+    },
+    {
+      "name": "dispatch-dms",
+      "schedule": "*/5 * * * *",
+      "description": "Dispatch pending DM send queue"
     }
   ]
 }

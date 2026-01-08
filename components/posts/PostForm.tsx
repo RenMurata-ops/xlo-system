@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Calendar, Image as ImageIcon, Upload, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { Database } from '@/types/database';
 
 interface Post {
   id: string;
@@ -26,6 +27,11 @@ interface UploadedMedia {
 }
 
 export default function PostForm({ post, onClose }: PostFormProps) {
+  interface AccountOption {
+    id: string;
+    handle: string;
+    is_active: boolean;
+  }
   const [formData, setFormData] = useState({
     content: '',
     media_urls: '',
@@ -36,7 +42,7 @@ export default function PostForm({ post, onClose }: PostFormProps) {
     use_interval: false,
     interval_hours: 1,
   });
-  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');

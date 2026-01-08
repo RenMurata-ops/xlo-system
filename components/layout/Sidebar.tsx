@@ -48,6 +48,7 @@ export default function Sidebar() {
         { title: 'エンゲージメント', href: '/engagement', icon: <Zap size={18} /> },
         { title: 'ターゲット', href: '/engagement/targeted', icon: <Target size={18} /> },
         { title: 'ループ', href: '/loops', icon: <Repeat size={18} /> },
+        { title: 'DMオート', href: '/dm-rules', icon: <MessageSquare size={18} /> },
       ],
     },
     {

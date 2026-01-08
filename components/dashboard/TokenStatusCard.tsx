@@ -15,11 +15,19 @@ interface TokenStatus {
   is_active: boolean;
 }
 
+interface RefreshResult {
+  ok: boolean;
+  refreshed?: number;
+  failed?: number;
+  error?: string;
+  message?: string;
+}
+
 export default function TokenStatusCard() {
   const [tokens, setTokens] = useState<TokenStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [lastRefreshResult, setLastRefreshResult] = useState<any>(null);
+  const [lastRefreshResult, setLastRefreshResult] = useState<RefreshResult | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -167,6 +175,11 @@ export default function TokenStatusCard() {
   return (
     <div className="bg-gray-800 rounded-lg shadow border border-gray-700">
       <div className="p-6 border-b border-gray-700">
+        {activeTokens.length === 0 && (
+          <div className="mb-4 p-3 rounded border border-red-700 bg-red-900/30 text-sm text-red-200">
+            すべてのトークンが期限切れ/無効です。再認証を行ってください。
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white">トークンステータス</h3>

@@ -3,11 +3,9 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = getCorsHeaders();
 
 interface Loop {
   id: string;
@@ -391,8 +389,29 @@ async function selectAccounts(sb: any, loop: Loop) {
     throw new Error('No active accounts found matching loop criteria');
   }
 
+  // Verify each account has a valid token
+  const accountsWithTokens = [];
+  for (const account of data) {
+    const { data: token } = await sb
+      .from('account_tokens')
+      .select('id, access_token')
+      .eq('account_id', account.id)
+      .eq('is_active', true)
+      .eq('token_type', 'oauth2')
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (token) {
+      accountsWithTokens.push(account);
+    }
+  }
+
+  if (accountsWithTokens.length === 0) {
+    throw new Error('No accounts with valid tokens found');
+  }
+
   // Shuffle accounts randomly
-  return data.sort(() => Math.random() - 0.5);
+  return accountsWithTokens.sort(() => Math.random() - 0.5);
 }
 
 function selectTemplate(loop: Loop, currentIndex: number = 0) {

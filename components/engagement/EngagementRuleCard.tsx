@@ -120,6 +120,26 @@ export default function EngagementRuleCard({
 
       if (data?.ok) {
         const result = data.results?.[0];
+        const status = result?.status;
+        const errorMsg = result?.error || '';
+        const isRateLimited = errorMsg.toLowerCase().includes('rate') || (result?.rateLimited === true);
+
+        if (isRateLimited) {
+          toast.error('レート制限でスキップしました', {
+            id: loadingToast,
+            description: '時間をおいて再実行するか、実行アカウントを増やしてください',
+          });
+          return;
+        }
+
+        if (status === 'failed') {
+          toast.error('実行に失敗しました', {
+            id: loadingToast,
+            description: errorMsg || 'エラーが発生しました',
+          });
+          return;
+        }
+
         toast.success('実行完了', {
           id: loadingToast,
           description: `${result?.actions_succeeded || 0}件成功 / ${result?.actions_attempted || 0}件試行`,

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { Database } from '@/types/database';
 
 interface Loop {
   id: string;
@@ -50,8 +51,19 @@ export default function LoopForm({ loop, onClose }: LoopFormProps) {
     tags: '',
     is_active: true,
   });
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [templates, setTemplates] = useState<any[]>([]);
+  interface AccountOption {
+    id: string;
+    handle: string;
+    name: string | null;
+    is_active: boolean;
+  }
+  interface TemplateOption {
+    id: string;
+    template_name: string;
+    template_type: string;
+  }
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [loadingTemplates, setLoadingTemplates] = useState(false);

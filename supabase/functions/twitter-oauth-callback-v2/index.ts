@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { validateEnv, getRequiredEnv } from '../_shared/fetch-with-timeout.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 serve(async (req) => {
   try {
@@ -152,6 +153,7 @@ serve(async (req) => {
         user_id: session.user_id,
         account_type: session.account_type || 'main',
         account_id: session.account_id || null,
+        twitter_app_id: session.twitter_app_id, // Record which Twitter App was used
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token || null,
         token_type: 'oauth2',

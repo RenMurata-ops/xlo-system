@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 interface Template {
   id: string;
   template_name: string;
-  template_type: 'post' | 'reply' | 'cta';
+  template_type: 'post' | 'reply' | 'cta' | 'dm';
   content: string;
   variables: string[] | null;
   category: string | null;
@@ -26,7 +26,7 @@ interface TemplateFormProps {
 export default function TemplateForm({ template, onClose }: TemplateFormProps) {
   const [formData, setFormData] = useState({
     template_name: '',
-    template_type: 'post' as 'post' | 'reply' | 'cta',
+    template_type: 'post' as 'post' | 'reply' | 'cta' | 'dm',
     content: '',
     variables: '',
     category: '',
@@ -98,14 +98,17 @@ export default function TemplateForm({ template, onClose }: TemplateFormProps) {
 
       onClose();
     } catch (err: any) {
-      setError(err.message || '保存に失敗しました');
+      const message = err?.code === '23505'
+        ? '同じ名前のテンプレートが既に存在します'
+        : (err.message || '保存に失敗しました');
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
   const charCount = formData.content.length;
-  const maxChars = formData.template_type === 'reply' ? 280 : 280;
+  const maxChars = formData.template_type === 'dm' ? 10000 : 280;
   const isOverLimit = charCount > maxChars;
 
   return (
@@ -148,17 +151,18 @@ export default function TemplateForm({ template, onClose }: TemplateFormProps) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               テンプレートタイプ *
             </label>
-            <select
-              required
-              value={formData.template_type}
-              onChange={(e) => setFormData({ ...formData, template_type: e.target.value as 'post' | 'reply' | 'cta' })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="post">投稿</option>
-              <option value="reply">リプライ</option>
-              <option value="cta">CTA</option>
-            </select>
-          </div>
+          <select
+            required
+            value={formData.template_type}
+            onChange={(e) => setFormData({ ...formData, template_type: e.target.value as 'post' | 'reply' | 'cta' | 'dm' })}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="post">投稿</option>
+            <option value="reply">リプライ</option>
+            <option value="cta">CTA</option>
+            <option value="dm">DM</option>
+          </select>
+        </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -1,10 +1,44 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = getCorsHeaders();
+
+// Helper function to call Twitter API via proxy
+async function callTwitterApiProxy(
+  supabaseUrl: string,
+  serviceKey: string,
+  accountTokenId: string,
+  endpoint: string,
+  method: string,
+  body?: any
+): Promise<any> {
+  const response = await fetchWithTimeout(
+    `${supabaseUrl}/functions/v1/twitter-api-proxy`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        endpoint,
+        method,
+        body,
+        account_token_id: accountTokenId,
+      }),
+      timeout: 30000,
+      maxRetries: 2,
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(error || 'Twitter API call failed');
+  }
+
+  return await response.json();
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -48,13 +82,15 @@ Deno.serve(async (req) => {
         // Get token for target account to check their posts
         const { data: targetToken } = await supabase
           .from('account_tokens')
-          .select('access_token')
+          .select('id, access_token, expires_at')
           .eq('account_id', trigger.target_account_id)
           .eq('account_type', 'main')
+          .eq('is_active', true)
+          .gt('expires_at', new Date().toISOString())
           .single();
 
         if (!targetToken) {
-          results.errors.push(`No token for target account ${trigger.target_account_id}`);
+          results.errors.push(`No valid token for target account ${trigger.target_account_id}`);
           continue;
         }
 
@@ -69,48 +105,42 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Fetch latest tweets from target account
-        const userResponse = await fetchWithTimeout(
-          `https://api.twitter.com/2/users/by/username/${targetAccount.handle}?user.fields=id`,
-          {
-            headers: {
-              'Authorization': `Bearer ${targetToken.access_token}`,
-            },
-            timeout: 30000,
-            maxRetries: 2,
-          }
-        );
-
-        if (!userResponse.ok) {
-          results.errors.push(`Failed to get user ID for ${targetAccount.handle}`);
+        // Fetch latest tweets from target account via proxy
+        let userData;
+        try {
+          userData = await callTwitterApiProxy(
+            supabaseUrl,
+            supabaseServiceKey,
+            targetToken.id,
+            `/users/by/username/${targetAccount.handle}?user.fields=id`,
+            'GET'
+          );
+        } catch (error: any) {
+          results.errors.push(`Failed to fetch user data for ${targetAccount.handle}: ${error.message}`);
           continue;
         }
 
-        const userData = await userResponse.json();
-        const userId = userData.data?.id;
+        if (!userData || !userData.data) {
+          results.errors.push(`Invalid user data response for ${targetAccount.handle}`);
+          continue;
+        }
+
+        const userId = userData.data.id;
 
         if (!userId) {
+          results.errors.push(`Could not get user ID for ${targetAccount.handle}`);
           continue;
         }
 
-        // Fetch user's tweets
-        const tweetsResponse = await fetchWithTimeout(
-          `https://api.twitter.com/2/users/${userId}/tweets?max_results=5&exclude=retweets,replies`,
-          {
-            headers: {
-              'Authorization': `Bearer ${targetToken.access_token}`,
-            },
-            timeout: 30000,
-            maxRetries: 2,
-          }
+        // Fetch user's tweets via proxy
+        const tweetsData = await callTwitterApiProxy(
+          supabaseUrl,
+          supabaseServiceKey,
+          targetToken.id,
+          `/users/${userId}/tweets?max_results=5&exclude=retweets,replies`,
+          'GET'
         );
 
-        if (!tweetsResponse.ok) {
-          results.errors.push(`Failed to fetch tweets for ${targetAccount.handle}`);
-          continue;
-        }
-
-        const tweetsData = await tweetsResponse.json();
         const tweets = tweetsData.data || [];
 
         // Check for new tweets
@@ -186,39 +216,30 @@ Deno.serve(async (req) => {
         // Get responder token
         const { data: responderToken } = await supabase
           .from('account_tokens')
-          .select('access_token')
+          .select('id, access_token, expires_at')
           .eq('account_id', execution.trigger.responder_account_id)
+          .eq('is_active', true)
+          .gt('expires_at', new Date().toISOString())
           .single();
 
         if (!responderToken) {
-          throw new Error('No responder token');
+          throw new Error('No valid responder token');
         }
 
-        // Send reply
-        const replyResponse = await fetchWithTimeout(
-          'https://api.twitter.com/2/tweets',
+        // Send reply via proxy
+        const replyData = await callTwitterApiProxy(
+          supabaseUrl,
+          supabaseServiceKey,
+          responderToken.id,
+          '/tweets',
+          'POST',
           {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${responderToken.access_token}`,
-              'Content-Type': 'application/json',
+            text: execution.trigger.cta_template.content,
+            reply: {
+              in_reply_to_tweet_id: execution.target_tweet_id,
             },
-            body: JSON.stringify({
-              text: execution.trigger.cta_template.content,
-              reply: {
-                in_reply_to_tweet_id: execution.target_tweet_id,
-              },
-            }),
-            timeout: 30000,
-            maxRetries: 2,
           }
         );
-
-        if (!replyResponse.ok) {
-          throw new Error('Failed to send reply');
-        }
-
-        const replyData = await replyResponse.json();
 
         // Update execution status
         await supabase

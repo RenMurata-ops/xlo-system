@@ -34,3 +34,11 @@ yarn-error.log*
 next-env.d.ts
 supabase/.temp/
 supabase/migrations_backup/
+
+# security - sensitive files
+*_BACKUP.*
+ENCRYPTION_KEY_*
+*.key
+*.pem
+*_SECRET.*
+EXECUTE_ENCRYPTION_*

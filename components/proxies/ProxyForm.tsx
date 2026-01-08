@@ -6,10 +6,10 @@ import { createClient } from '@/lib/supabase/client';
 
 interface Proxy {
   id: string;
-  proxy_name: string;
-  proxy_type: 'http' | 'https' | 'socks5';
-  host: string;
-  port: number;
+  proxy_name: string | null;
+  proxy_type: 'http' | 'https' | 'socks5' | 'nordvpn';
+  host: string | null;
+  port: number | null;
   username: string | null;
   password: string | null;
   country: string | null;
@@ -25,7 +25,7 @@ interface ProxyFormProps {
 export default function ProxyForm({ proxy, onClose }: ProxyFormProps) {
   const [formData, setFormData] = useState({
     proxy_name: '',
-    proxy_type: 'http' as 'http' | 'https' | 'socks5',
+    proxy_type: 'http' as 'http' | 'https' | 'socks5' | 'nordvpn',
     host: '',
     port: 8080,
     username: '',
@@ -41,10 +41,10 @@ export default function ProxyForm({ proxy, onClose }: ProxyFormProps) {
   useEffect(() => {
     if (proxy) {
       setFormData({
-        proxy_name: proxy.proxy_name,
+        proxy_name: proxy.proxy_name || '',
         proxy_type: proxy.proxy_type,
-        host: proxy.host,
-        port: proxy.port,
+        host: proxy.host || '',
+        port: proxy.port || 8080,
         username: proxy.username || '',
         password: proxy.password || '',
         country: proxy.country || '',
@@ -64,18 +64,18 @@ export default function ProxyForm({ proxy, onClose }: ProxyFormProps) {
       if (!user) throw new Error('ログインが必要です');
 
       const payload = {
-        proxy_name: formData.proxy_name,
+        proxy_name: formData.proxy_name || null,
         proxy_type: formData.proxy_type,
-        host: formData.host,
-        port: formData.port,
+        host: formData.host || null,
+        port: formData.port || null,
+        proxy_url: `${formData.proxy_type}://${formData.host}:${formData.port}`,
         username: formData.username || null,
         password: formData.password || null,
         country: formData.country || null,
         notes: formData.notes || null,
         is_active: formData.is_active,
         user_id: user.id,
-        test_status: 'untested',
-        assigned_accounts_count: 0,
+        // test_status and assigned_accounts_count are managed by database defaults/triggers
       };
 
       if (proxy) {

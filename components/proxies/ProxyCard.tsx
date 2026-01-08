@@ -4,17 +4,18 @@ import { Edit2, Trash2, CheckCircle, XCircle, Globe, Zap, Clock, Users } from 'l
 
 interface Proxy {
   id: string;
-  proxy_name: string;
-  proxy_type: 'http' | 'https' | 'socks5';
-  host: string;
-  port: number;
+  proxy_name: string | null;
+  proxy_type: 'http' | 'https' | 'socks5' | 'nordvpn';
+  proxy_url: string | null;
+  host: string | null;
+  port: number | null;
   username: string | null;
   country: string | null;
   is_active: boolean;
-  last_tested_at: string | null;
-  test_status: 'success' | 'failed' | 'untested';
+  last_checked_at: string | null;
+  test_status: 'success' | 'failed' | 'untested' | null;
   response_time_ms: number | null;
-  assigned_accounts_count: number;
+  assigned_accounts_count: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -70,7 +71,7 @@ export default function ProxyCard({
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {proxy.proxy_name}
+              {proxy.proxy_name || '（名称未設定）'}
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`px-2 py-1 rounded text-xs font-medium ${getTypeColor(proxy.proxy_type)}`}>
@@ -98,15 +99,15 @@ export default function ProxyCard({
         </div>
 
         <div className="mt-3 p-3 bg-gray-50 rounded text-sm font-mono text-gray-700">
-          {proxy.host}:{proxy.port}
+          {proxy.proxy_url || `${proxy.host || 'host'}:${proxy.port || 'port'}`}
         </div>
       </div>
 
       <div className="p-6 space-y-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600">テスト状態</span>
-          <span className={`font-semibold ${getTestStatusColor(proxy.test_status)}`}>
-            {getTestStatusLabel(proxy.test_status)}
+          <span className={`font-semibold ${getTestStatusColor(proxy.test_status || 'untested')}`}>
+            {getTestStatusLabel(proxy.test_status || 'untested')}
           </span>
         </div>
 
@@ -132,9 +133,9 @@ export default function ProxyCard({
           </span>
         </div>
 
-        {proxy.last_tested_at && (
+        {proxy.last_checked_at && (
           <div className="pt-2 border-t border-gray-100 text-xs text-gray-500">
-            最終テスト: {new Date(proxy.last_tested_at).toLocaleString('ja-JP')}
+            最終テスト: {new Date(proxy.last_checked_at).toLocaleString('ja-JP')}
           </div>
         )}
 

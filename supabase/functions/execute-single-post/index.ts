@@ -1,22 +1,40 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 interface SinglePostRequest {
   post_id: string;
 }
 
 serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+  const corsHeaders = getCorsHeaders();
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   const traceId = crypto.randomUUID();
+
+  // Parse request body once at the top level
+  let requestData: SinglePostRequest | null = null;
+  try {
+    requestData = await req.json();
+  } catch (parseError) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Invalid JSON in request body',
+        trace_id: traceId,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      }
+    );
+  }
+
+  const { post_id } = requestData;
 
   try {
     const authHeader = req.headers.get('Authorization');
@@ -41,9 +59,6 @@ serve(async (req) => {
     // Get service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const requestData: SinglePostRequest = await req.json();
-    const { post_id } = requestData;
-
     if (!post_id) {
       throw new Error('Missing post_id');
     }
@@ -54,7 +69,7 @@ serve(async (req) => {
       .select('*')
       .eq('id', post_id)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (postError || !post) {
       console.error('Post fetch error:', postError);
@@ -77,7 +92,7 @@ serve(async (req) => {
       .eq('account_id', post.account_id)
       .eq('user_id', user.id)
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
     if (tokenError || !accountToken) {
       console.error('Account token fetch error:', tokenError);
@@ -134,7 +149,7 @@ serve(async (req) => {
       .from('posts')
       .update({
         status: 'posted',
-        twitter_id: tweetId,
+        tweet_id: tweetId,
         posted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -162,11 +177,8 @@ serve(async (req) => {
     console.error('Single post execution error:', error);
 
     // Try to update post status to failed if we have the post_id
-    try {
-      const requestData = await req.json();
-      const { post_id } = requestData;
-
-      if (post_id) {
+    if (post_id) {
+      try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -178,9 +190,9 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq('id', post_id);
+      } catch (updateError) {
+        console.error('Failed to update post status:', updateError);
       }
-    } catch (updateError) {
-      console.error('Failed to update post status:', updateError);
     }
 
     return new Response(

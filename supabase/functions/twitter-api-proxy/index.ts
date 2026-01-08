@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { validateEnv, getRequiredEnv } from '../_shared/fetch-with-timeout.ts';
+import { getCorsHeadersForRequest } from '../_shared/cors.ts';
 
 interface ProxyRequest {
   user_id?: string; // For service role requests
@@ -67,6 +68,7 @@ async function refreshAccessToken(
         expires_at: expiresAt.toISOString(),
         last_refreshed_at: new Date().toISOString(),
         refresh_count: (tokenRecord.refresh_count || 0) + 1,
+        is_active: true, // Re-activate token after successful refresh
       })
       .eq('id', tokenRecord.id);
 
@@ -78,10 +80,7 @@ async function refreshAccessToken(
 }
 
 serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+  const corsHeaders = getCorsHeadersForRequest(req);
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -100,8 +99,8 @@ serve(async (req) => {
     const supabaseServiceKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY');
     const supabaseAnonKey = getRequiredEnv('SUPABASE_ANON_KEY');
 
-    // Check if request is from service role (background job) or user
-    const isServiceRole = authHeader.includes(supabaseServiceKey);
+    // SECURITY: Strict service role check - prevent accidental authorization
+    const isServiceRole = authHeader === `Bearer ${supabaseServiceKey}`;
 
     let supabase;
     let userId: string | null = null;
@@ -136,7 +135,7 @@ serve(async (req) => {
       userId = user_id;
     }
 
-    // Find valid access token
+    // Find valid access token - try active tokens first, then inactive with refresh_token
     let query = supabase
       .from('account_tokens')
       .select('*')
@@ -155,26 +154,32 @@ serve(async (req) => {
 
     const { data: tokens, error: tokenError } = await query.limit(1);
 
+    // SECURITY: Only use active tokens - no fallback to inactive tokens
     if (tokenError || !tokens || tokens.length === 0) {
-      throw new Error('No valid access token found');
+      throw new Error('No valid active access token found');
     }
 
     let tokenRecord = tokens[0];
     let accessToken = tokenRecord.access_token;
 
-    // Check if token needs refresh (expires in less than 5 minutes)
+    // Check if token needs refresh (expires in less than 5 minutes OR already expired)
     const expiresAt = new Date(tokenRecord.expires_at);
     const now = new Date();
     const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
 
     if (expiresAt < fiveMinutesFromNow && tokenRecord.refresh_token && userId) {
-      console.log('Token expiring soon, refreshing...');
+      console.log('Token expired or expiring soon, refreshing...');
       const newToken = await refreshAccessToken(supabase, tokenRecord, userId);
       if (newToken) {
         accessToken = newToken;
       } else {
-        // Refresh failed and token is expiring - return error
-        throw new Error('Token refresh failed and token is expired or expiring');
+        // Refresh failed - check if token is still valid
+        if (expiresAt < now) {
+          // Token is already expired and refresh failed - cannot proceed
+          throw new Error('Token is expired and refresh failed');
+        }
+        // Token is still valid despite refresh failure - use existing token
+        console.log('Token refresh failed but token is still valid, using existing token');
       }
     }
 

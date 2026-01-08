@@ -3,11 +3,9 @@
 // 特定のアカウントの投稿を監視し、新しい投稿に自動的にリプライを送信
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = getCorsHeaders();
 
 interface CTALoop {
   id: string;
@@ -120,6 +118,20 @@ async function executeCTALoop(sb: any, loop: CTALoop, traceId: string) {
 
     if (accountError || !account) {
       throw new Error('Executor account not found or inactive');
+    }
+
+    // Verify account has valid token
+    const { data: accountToken } = await sb
+      .from('account_tokens')
+      .select('id, access_token')
+      .eq('account_id', account.id)
+      .eq('is_active', true)
+      .eq('token_type', 'oauth2')
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (!accountToken) {
+      throw new Error('Executor account does not have a valid token');
     }
 
     // Process each new tweet

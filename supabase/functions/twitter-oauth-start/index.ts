@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { validateEnv, getRequiredEnv } from '../_shared/fetch-with-timeout.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 // PKCE helper functions
 function generateRandomString(length: number): string {
@@ -19,10 +20,7 @@ async function generateCodeChallenge(codeVerifier: string): Promise<string> {
 
 serve(async (req) => {
   // CORS headers
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
+  const corsHeaders = getCorsHeaders();
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
