@@ -2,6 +2,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { validateEnv, getRequiredEnv } from '../_shared/fetch-with-timeout.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { createLogger, getCorrelationId } from '../_shared/logger.ts';
+import {
+  BadRequestError,
+  UnauthorizedError,
+  NotFoundError,
+  InternalError,
+  handleError,
+  assert,
+} from '../_shared/errors.ts';
 
 // PKCE helper functions
 function generateRandomString(length: number): string {
@@ -27,31 +36,34 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const correlationId = getCorrelationId(req);
+  const logger = createLogger('twitter-oauth-start', correlationId);
+
   try {
+    logger.info('OAuth start request received');
+
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
-    console.log('Auth header present:', !!authHeader);
-    console.log('Auth header length:', authHeader?.length || 0);
-
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
-    }
+    assert(authHeader, new UnauthorizedError('Missing authorization header'));
 
     // Extract the token from "Bearer <token>"
     const token = authHeader.replace('Bearer ', '');
-    console.log('Token extracted, length:', token.length);
 
     // Parse request body
     const body = await req.json();
     const { account_id, account_type, twitter_app_id } = body;
 
-    if (!account_id || !account_type || !twitter_app_id) {
-      throw new Error('Missing account_id, account_type, or twitter_app_id');
-    }
+    assert(account_id, new BadRequestError('Missing account_id'));
+    assert(account_type, new BadRequestError('Missing account_type'));
+    assert(twitter_app_id, new BadRequestError('Missing twitter_app_id'));
 
     if (!['main', 'spam', 'follow'].includes(account_type)) {
-      throw new Error('Invalid account_type. Must be main, spam, or follow');
+      throw new BadRequestError('Invalid account_type. Must be main, spam, or follow', {
+        account_type,
+      });
     }
+
+    logger.info('Request validated', { account_id, account_type, twitter_app_id });
 
     // Validate required environment variables
     validateEnv(['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY']);
@@ -66,11 +78,15 @@ serve(async (req) => {
 
     // Get current user by passing the JWT token directly
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
-    console.log('getUser result - user:', user?.id, 'error:', userError?.message);
+
     if (userError || !user) {
-      console.error('Auth error details:', JSON.stringify(userError));
-      throw new Error(`認証エラー: ${userError?.message || 'ユーザーが見つかりません'}。再ログインしてください。`);
+      logger.warn('User authentication failed', { error: userError?.message });
+      throw new UnauthorizedError('Authentication failed. Please login again.', {
+        reason: userError?.message,
+      });
     }
+
+    logger.info('User authenticated', { userId: user.id });
 
     // Create service role client for database operations (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -84,17 +100,16 @@ serve(async (req) => {
       .single();
 
     if (appError || !twitterApp) {
-      console.error('Twitter App fetch error:', appError);
-      throw new Error('X Appが見つかりません。X Apps管理ページでX Appを登録してください。');
+      logger.warn('Twitter App not found', { twitter_app_id, error: appError?.message });
+      throw new NotFoundError('Twitter App not found. Please register an app in Twitter Apps management.', {
+        twitter_app_id,
+      });
     }
 
-    if (!twitterApp.client_id) {
-      throw new Error('X AppにClient IDが設定されていません。X Apps管理ページでClient IDを入力してください。');
-    }
+    assert(twitterApp.client_id, new BadRequestError('Twitter App missing Client ID. Please configure it.'));
+    assert(twitterApp.client_secret, new BadRequestError('Twitter App missing Client Secret. Please configure it.'));
 
-    if (!twitterApp.client_secret) {
-      throw new Error('X AppにClient Secretが設定されていません。X Apps管理ページでClient Secretを入力してください。');
-    }
+    logger.info('Twitter App credentials loaded', { twitter_app_id });
 
     // Generate PKCE values
     const state = generateRandomString(32);
@@ -120,10 +135,13 @@ serve(async (req) => {
       });
 
     if (sessionError) {
-      console.error('Session save error:', sessionError);
-      console.error('Session error details:', JSON.stringify(sessionError));
-      throw new Error(`Failed to save OAuth session: ${sessionError.message}`);
+      logger.error('Failed to save OAuth session', { error: sessionError.message });
+      throw new InternalError('Failed to save OAuth session', {
+        error: sessionError.message,
+      });
     }
+
+    logger.info('OAuth session created', { state });
 
     // Build Twitter authorization URL using credentials from database
     const redirectUri = twitterApp.callback_url ||
@@ -140,6 +158,8 @@ serve(async (req) => {
     authUrl.searchParams.set('code_challenge', codeChallenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');
 
+    logger.info('OAuth URL generated successfully');
+
     return new Response(
       JSON.stringify({
         authUrl: authUrl.toString(),
@@ -151,15 +171,6 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error:', error);
-    return new Response(
-      JSON.stringify({
-        error: error.message || 'Internal server error',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    );
+    return handleError(error, logger);
   }
 });
