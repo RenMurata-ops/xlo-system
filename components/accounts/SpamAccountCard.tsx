@@ -149,7 +149,7 @@ export default function SpamAccountCard({
             <span>エンゲージメント</span>
           </div>
           <span className="font-semibold text-gray-900">
-            {account.total_engagements.toLocaleString()}
+            {(account.total_engagements || 0).toLocaleString()}
           </span>
         </div>
 

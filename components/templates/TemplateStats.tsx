@@ -60,16 +60,16 @@ export default function TemplateStats({ templates, onClose }: TemplateStatsProps
     {
       name: 'アクティブ',
       value: templates.filter(t => t.is_active).length,
-      usage: templates.filter(t => t.is_active).reduce((sum, t) => sum + t.usage_count, 0),
+      usage: templates.filter(t => t.is_active).reduce((sum, t) => sum + (t.usage_count || 0), 0),
     },
     {
       name: '非アクティブ',
       value: templates.filter(t => !t.is_active).length,
-      usage: templates.filter(t => !t.is_active).reduce((sum, t) => sum + t.usage_count, 0),
+      usage: templates.filter(t => !t.is_active).reduce((sum, t) => sum + (t.usage_count || 0), 0),
     },
   ];
 
-  const totalUsage = templates.reduce((sum, t) => sum + t.usage_count, 0);
+  const totalUsage = templates.reduce((sum, t) => sum + (t.usage_count || 0), 0);
   const avgUsage = templates.length > 0 ? (totalUsage / templates.length).toFixed(1) : '0';
   const mostUsedTemplate = templates.reduce((max, t) => t.usage_count > max.usage_count ? t : max, templates[0] || { usage_count: 0, template_name: 'N/A' });
 
@@ -123,7 +123,7 @@ export default function TemplateStats({ templates, onClose }: TemplateStatsProps
                 <div className="text-right">
                   <div className="text-sm text-yellow-700 mb-1">使用回数</div>
                   <div className="text-3xl font-bold text-yellow-900">
-                    {mostUsedTemplate.usage_count.toLocaleString()}
+                    {(mostUsedTemplate.usage_count || 0).toLocaleString()}
                   </div>
                 </div>
               </div>

@@ -203,7 +203,7 @@ export default function LoopsPage() {
   }
 
   const activeLoops = loops.filter(l => l.is_active).length;
-  const totalPosts = loops.reduce((sum, l) => sum + l.post_count, 0);
+  const totalPosts = loops.reduce((sum, l) => sum + (l.post_count || 0), 0);
   const scheduledLoops = loops.filter(l => l.next_run_at && new Date(l.next_run_at) > new Date()).length;
 
   if (loading) {

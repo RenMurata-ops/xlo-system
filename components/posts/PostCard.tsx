@@ -169,7 +169,7 @@ export default function PostCard({
         {post.engagement_count !== null && post.engagement_count > 0 && !post.twitter_id && (
           <div className="flex items-center gap-2 text-sm text-pink-400">
             <Heart size={16} />
-            <span>{post.engagement_count.toLocaleString()} エンゲージメント</span>
+            <span>{(post.engagement_count || 0).toLocaleString()} エンゲージメント</span>
           </div>
         )}
       </div>

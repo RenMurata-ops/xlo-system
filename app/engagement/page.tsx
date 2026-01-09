@@ -131,8 +131,8 @@ export default function EngagementPage() {
   }
 
   const activeRules = rules.filter(r => r.is_active).length;
-  const totalActions = rules.reduce((sum, r) => sum + r.total_actions_count, 0);
-  const totalSuccess = rules.reduce((sum, r) => sum + r.success_count, 0);
+  const totalActions = rules.reduce((sum, r) => sum + (r.total_actions_count || 0), 0);
+  const totalSuccess = rules.reduce((sum, r) => sum + (r.success_count || 0), 0);
   const successRate = totalActions > 0
     ? ((totalSuccess / totalActions) * 100).toFixed(1)
     : '0';

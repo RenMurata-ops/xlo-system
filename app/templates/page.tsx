@@ -124,7 +124,7 @@ export default function TemplatesPage() {
   const replyTemplates = templates.filter(t => t.template_type === 'reply').length;
   const ctaTemplates = templates.filter(t => t.template_type === 'cta').length;
   const dmTemplates = templates.filter(t => t.template_type === 'dm').length;
-  const totalUsage = templates.reduce((sum, t) => sum + t.usage_count, 0);
+  const totalUsage = templates.reduce((sum, t) => sum + (t.usage_count || 0), 0);
 
   if (loading) {
     return (

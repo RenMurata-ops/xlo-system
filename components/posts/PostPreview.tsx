@@ -164,7 +164,7 @@ export default function PostPreview({ post, onClose }: PostPreviewProps) {
               <div className="px-4 pb-4 pt-2 border-t border-gray-100">
                 <div className="flex items-center gap-6 text-sm text-gray-600">
                   <div className="flex items-center gap-1">
-                    <span className="font-semibold text-gray-900">{post.engagement_count.toLocaleString()}</span>
+                    <span className="font-semibold text-gray-900">{(post.engagement_count || 0).toLocaleString()}</span>
                     <span>エンゲージメント</span>
                   </div>
                 </div>

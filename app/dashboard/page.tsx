@@ -90,8 +90,8 @@ export default function DashboardPage() {
         activeEngagementRules: engagementRules.data?.filter((r: any) => r.is_active).length || 0,
         activeLoops: loops.data?.filter((l: any) => l.is_active).length || 0,
         workingProxies: proxies.data?.filter((p: any) => p.test_status === 'success').length || 0,
-        totalEngagements: spamAccounts.data?.reduce((sum: number, acc: any) => sum + acc.total_engagements, 0) || 0,
-        totalPostCount: loops.data?.reduce((sum: number, loop: any) => sum + loop.post_count, 0) || 0,
+        totalEngagements: spamAccounts.data?.reduce((sum: number, acc: any) => sum + (acc.total_engagements || 0), 0) || 0,
+        totalPostCount: loops.data?.reduce((sum: number, loop: any) => sum + (loop.post_count || 0), 0) || 0,
       };
 
       setStats(dashboardStats);
