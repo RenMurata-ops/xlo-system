@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { validateEnv, getRequiredEnv, fetchWithTimeout } from '../_shared/fetch-with-timeout.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { createLogger, getCorrelationId, type Logger } from '../_shared/logger.ts';
 
 interface TokenRefreshResult {
   token_id: string;
@@ -13,7 +14,8 @@ interface TokenRefreshResult {
 async function refreshSingleToken(
   supabase: any,
   tokenRecord: any,
-  twitterApp: any
+  twitterApp: any,
+  logger: Logger
 ): Promise<TokenRefreshResult> {
   try {
     if (!tokenRecord.refresh_token) {
@@ -45,7 +47,11 @@ async function refreshSingleToken(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Token refresh failed for ${tokenRecord.x_username}:`, errorText);
+      logger.error('Token refresh failed', {
+        x_username: tokenRecord.x_username,
+        status: response.status,
+        error: errorText,
+      });
 
       // Mark token as inactive if refresh completely fails
       if (response.status === 400 || response.status === 401) {
@@ -88,7 +94,10 @@ async function refreshSingleToken(
       .eq('id', tokenRecord.id);
 
     if (updateError) {
-      console.error(`Failed to update token for ${tokenRecord.x_username}:`, updateError);
+      logger.error('Failed to update token in database', {
+        x_username: tokenRecord.x_username,
+        error: updateError.message,
+      });
       return {
         token_id: tokenRecord.id,
         x_username: tokenRecord.x_username || 'unknown',
@@ -97,14 +106,20 @@ async function refreshSingleToken(
       };
     }
 
-    console.log(`Successfully refreshed token for ${tokenRecord.x_username}`);
+    logger.info('Successfully refreshed token', {
+      x_username: tokenRecord.x_username,
+      refresh_count: (tokenRecord.refresh_count || 0) + 1,
+    });
     return {
       token_id: tokenRecord.id,
       x_username: tokenRecord.x_username || 'unknown',
       success: true,
     };
   } catch (error) {
-    console.error(`Error refreshing token for ${tokenRecord.x_username}:`, error);
+    logger.error('Exception during token refresh', {
+      x_username: tokenRecord.x_username,
+      error: error.message,
+    });
     return {
       token_id: tokenRecord.id,
       x_username: tokenRecord.x_username || 'unknown',
@@ -121,6 +136,9 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const correlationId = getCorrelationId(req);
+  const logger = createLogger('refresh-tokens', correlationId);
+
   try {
     validateEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
     const SUPABASE_URL = getRequiredEnv('SUPABASE_URL');
@@ -134,7 +152,7 @@ serve(async (req) => {
 
     // MODE 1: Single token refresh (if token_id provided)
     if (token_id) {
-      console.log(`Single token refresh requested for token_id: ${token_id}`);
+      logger.info('Single token refresh requested', { token_id });
 
       // Get the specific token
       const { data: tokenRecord, error: tokenError } = await supabase
@@ -218,7 +236,7 @@ serve(async (req) => {
       }
 
       // Refresh the token
-      const result = await refreshSingleToken(supabase, tokenRecord, twitterApp);
+      const result = await refreshSingleToken(supabase, tokenRecord, twitterApp, logger);
 
       return new Response(
         JSON.stringify({
@@ -234,7 +252,7 @@ serve(async (req) => {
     }
 
     // MODE 2: Bulk refresh (original behavior)
-    console.log('Bulk token refresh started');
+    logger.info('Bulk token refresh started');
 
     // Calculate the time threshold (1 hour from now)
     const oneHourFromNow = new Date();
@@ -280,7 +298,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Found ${expiringTokens.length} tokens to refresh`);
+    logger.info('Found tokens to refresh', { count: expiringTokens.length });
 
     // Get unique Twitter App IDs to fetch their credentials
     const appIds = [...new Set(expiringTokens.map(t => t.twitter_app_id).filter(id => id))];
@@ -315,7 +333,9 @@ serve(async (req) => {
         .eq('is_default', true);
 
       if (defaultsError) {
-        console.warn('Failed to fetch default Twitter Apps:', defaultsError);
+        logger.warn('Failed to fetch default Twitter Apps', {
+          error: defaultsError.message,
+        });
       } else {
         defaultApps = defaults || [];
       }
@@ -360,7 +380,10 @@ serve(async (req) => {
       if (!twitterApp && token.user_id) {
         twitterApp = defaultAppMap.get(token.user_id);
         if (twitterApp) {
-          console.log(`Using fallback Twitter App for token ${token.id} (user: ${token.user_id})`);
+          logger.debug('Using fallback Twitter App for token', {
+            token_id: token.id,
+            user_id: token.user_id,
+          });
 
           // Update the token with the twitter_app_id for future use
           await supabase
@@ -380,7 +403,7 @@ serve(async (req) => {
         continue;
       }
 
-      const result = await refreshSingleToken(supabase, token, twitterApp);
+      const result = await refreshSingleToken(supabase, token, twitterApp, logger);
       results.push(result);
 
       // Small delay to avoid rate limiting
@@ -390,7 +413,7 @@ serve(async (req) => {
     const successful = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
 
-    console.log(`Token refresh complete: ${successful} successful, ${failed} failed`);
+    logger.info('Token refresh complete', { successful, failed });
 
     return new Response(
       JSON.stringify({
@@ -405,7 +428,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Token refresh error:', error);
+    logger.error('Token refresh error', { error: error.message });
     return new Response(
       JSON.stringify({
         ok: false,
