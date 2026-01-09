@@ -128,6 +128,114 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+    // Parse request body to check for single token refresh
+    const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    const { token_id } = body;
+
+    // MODE 1: Single token refresh (if token_id provided)
+    if (token_id) {
+      console.log(`Single token refresh requested for token_id: ${token_id}`);
+
+      // Get the specific token
+      const { data: tokenRecord, error: tokenError } = await supabase
+        .from('account_tokens')
+        .select(`
+          id,
+          user_id,
+          twitter_app_id,
+          access_token,
+          refresh_token,
+          expires_at,
+          x_username,
+          account_type,
+          refresh_count,
+          is_active
+        `)
+        .eq('id', token_id)
+        .single();
+
+      if (tokenError || !tokenRecord) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Token not found',
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 404,
+          }
+        );
+      }
+
+      if (!tokenRecord.refresh_token) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'No refresh token available',
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400,
+          }
+        );
+      }
+
+      // Get Twitter App credentials
+      let twitterApp;
+      if (tokenRecord.twitter_app_id) {
+        const { data: app } = await supabase
+          .from('twitter_apps')
+          .select('id, client_id, client_secret')
+          .eq('id', tokenRecord.twitter_app_id)
+          .eq('is_active', true)
+          .single();
+        twitterApp = app;
+      }
+
+      // Fallback: get default Twitter App for user
+      if (!twitterApp && tokenRecord.user_id) {
+        const { data: app } = await supabase
+          .from('twitter_apps')
+          .select('id, client_id, client_secret')
+          .eq('user_id', tokenRecord.user_id)
+          .eq('is_active', true)
+          .limit(1)
+          .single();
+        twitterApp = app;
+      }
+
+      if (!twitterApp) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Twitter App not found for user',
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 404,
+          }
+        );
+      }
+
+      // Refresh the token
+      const result = await refreshSingleToken(supabase, tokenRecord, twitterApp);
+
+      return new Response(
+        JSON.stringify({
+          success: result.success,
+          x_username: result.x_username,
+          error: result.error,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: result.success ? 200 : 400,
+        }
+      );
+    }
+
+    // MODE 2: Bulk refresh (original behavior)
+    console.log('Bulk token refresh started');
+
     // Calculate the time threshold (1 hour from now)
     const oneHourFromNow = new Date();
     oneHourFromNow.setHours(oneHourFromNow.getHours() + 1);
