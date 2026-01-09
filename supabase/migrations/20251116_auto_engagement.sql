@@ -4,7 +4,10 @@
 -- =====================================================
 -- Table: auto_engagement_rules
 -- =====================================================
-CREATE TABLE IF NOT EXISTS auto_engagement_rules (
+-- Drop existing table to ensure clean slate
+DROP TABLE IF EXISTS auto_engagement_rules CASCADE;
+
+CREATE TABLE auto_engagement_rules (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL,
 
@@ -55,15 +58,18 @@ CREATE TABLE IF NOT EXISTS auto_engagement_rules (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_auto_engagement_rules_user_id ON auto_engagement_rules(user_id);
-CREATE INDEX idx_auto_engagement_rules_active ON auto_engagement_rules(is_active) WHERE is_active = true;
-CREATE INDEX idx_auto_engagement_rules_next_execution ON auto_engagement_rules(next_execution_at)
+CREATE INDEX IF NOT EXISTS idx_auto_engagement_rules_user_id ON auto_engagement_rules(user_id);
+CREATE INDEX IF NOT EXISTS idx_auto_engagement_rules_active ON auto_engagement_rules(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_auto_engagement_rules_next_execution ON auto_engagement_rules(next_execution_at)
   WHERE is_active = true AND next_execution_at IS NOT NULL;
 
 -- =====================================================
 -- Table: auto_engagement_executions
 -- =====================================================
-CREATE TABLE IF NOT EXISTS auto_engagement_executions (
+-- Drop existing table to ensure clean slate
+DROP TABLE IF EXISTS auto_engagement_executions CASCADE;
+
+CREATE TABLE auto_engagement_executions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   rule_id UUID NOT NULL REFERENCES auto_engagement_rules(id) ON DELETE CASCADE,
   user_id UUID NOT NULL,
@@ -94,10 +100,10 @@ CREATE TABLE IF NOT EXISTS auto_engagement_executions (
 );
 
 -- Indexes
-CREATE INDEX idx_auto_engagement_executions_rule_id ON auto_engagement_executions(rule_id);
-CREATE INDEX idx_auto_engagement_executions_user_id ON auto_engagement_executions(user_id);
-CREATE INDEX idx_auto_engagement_executions_executed_at ON auto_engagement_executions(executed_at DESC);
-CREATE INDEX idx_auto_engagement_executions_trace_id ON auto_engagement_executions(trace_id);
+CREATE INDEX IF NOT EXISTS idx_auto_engagement_executions_rule_id ON auto_engagement_executions(rule_id);
+CREATE INDEX IF NOT EXISTS idx_auto_engagement_executions_user_id ON auto_engagement_executions(user_id);
+CREATE INDEX IF NOT EXISTS idx_auto_engagement_executions_executed_at ON auto_engagement_executions(executed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_auto_engagement_executions_trace_id ON auto_engagement_executions(trace_id);
 
 -- =====================================================
 -- Helper Functions

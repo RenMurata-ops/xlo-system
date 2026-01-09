@@ -60,6 +60,8 @@ async function refreshAccessToken(
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + tokenData.expires_in);
 
+    // SECURITY: Only update token data, do NOT change is_active status
+    // If a token was manually deactivated (is_active=false), it should stay inactive
     await supabase
       .from('account_tokens')
       .update({
@@ -68,7 +70,7 @@ async function refreshAccessToken(
         expires_at: expiresAt.toISOString(),
         last_refreshed_at: new Date().toISOString(),
         refresh_count: (tokenRecord.refresh_count || 0) + 1,
-        is_active: true, // Re-activate token after successful refresh
+        // Removed: is_active: true - preserve existing is_active status
       })
       .eq('id', tokenRecord.id);
 

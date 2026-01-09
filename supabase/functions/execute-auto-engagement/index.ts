@@ -112,37 +112,26 @@ Deno.serve(async (req) => {
         p_failure_count: executionResult.actions_failed,
       });
 
-      // Log execution (match schema: success/action_type/executor_account_id)
-      const actionType = rule.action_types && rule.action_types.length > 0
-        ? rule.action_types[0]
-        : rule.action_type;
-      const executorAccountId = executionResult.used_account_ids?.[0] || null;
+      // Log execution (match current schema: status, trace_id, counts, arrays)
+      const { error: insertError } = await sb.from('auto_engagement_executions').insert({
+        rule_id: rule.id,
+        user_id: rule.user_id,
+        status: executionResult.status,
+        trace_id: traceId,
+        searched_count: executionResult.searched_count,
+        filtered_count: executionResult.filtered_count,
+        actions_attempted: executionResult.actions_attempted,
+        actions_succeeded: executionResult.actions_succeeded,
+        actions_failed: executionResult.actions_failed,
+        used_account_ids: executionResult.used_account_ids,
+        target_tweet_ids: executionResult.target_tweet_ids,
+        target_user_ids: executionResult.target_user_ids,
+        exec_data: executionResult.exec_data,
+        error_message: executionResult.error,
+      });
 
-      if (!executorAccountId) {
-        console.warn(`[${traceId}] Skipping execution log: executor_account_id is null`);
-      } else {
-        const { error: insertError } = await sb.from('auto_engagement_executions').insert({
-          rule_id: rule.id,
-          user_id: rule.user_id,
-          success: executionResult.status === 'success',
-          action_type: actionType,
-          executor_account_id: executorAccountId,
-          trace_id: traceId,
-          searched_count: executionResult.searched_count,
-          filtered_count: executionResult.filtered_count,
-          actions_attempted: executionResult.actions_attempted,
-          actions_succeeded: executionResult.actions_succeeded,
-          actions_failed: executionResult.actions_failed,
-          used_account_ids: executionResult.used_account_ids,
-          target_tweet_ids: executionResult.target_tweet_ids,
-          target_user_ids: executionResult.target_user_ids,
-          exec_data: executionResult.exec_data,
-          error_message: executionResult.error,
-        });
-
-        if (insertError) {
-          console.error(`[${traceId}] Failed to insert execution record:`, insertError);
-        }
+      if (insertError) {
+        console.error(`[${traceId}] Failed to insert execution record:`, insertError);
       }
     }
 
@@ -542,8 +531,10 @@ async function filterResults(results: any[], rule: EngagementRule) {
 }
 
 async function selectExecutorAccounts(sb: any, rule: EngagementRule) {
+  // CRITICAL: Filter by user_id to prevent multi-tenant leakage
   let query = sb.from('account_tokens')
     .select('id, user_id, account_id, x_user_id, x_username, access_token, expires_at')
+    .eq('user_id', rule.user_id)  // SECURITY: Must filter by rule owner's user_id
     .eq('is_active', true)
     .eq('token_type', 'oauth2');
 
@@ -551,7 +542,7 @@ async function selectExecutorAccounts(sb: any, rule: EngagementRule) {
     query = query.in('id', rule.executor_account_ids);
   }
 
-  // Note: allowed_account_tags feature removed as 'tags' column does not exist in schema
+  // TODO: Implement allowed_account_tags filtering when tags column is added to account_tokens
 
   const { data: accounts, error } = await query;
 
@@ -560,7 +551,14 @@ async function selectExecutorAccounts(sb: any, rule: EngagementRule) {
     return [];
   }
 
-  return accounts || [];
+  // Filter out any accounts with invalid/deleted account_ids
+  const validAccounts = (accounts || []).filter(acc => acc.account_id && acc.x_user_id);
+
+  if (validAccounts.length < (accounts || []).length) {
+    console.warn(`Filtered out ${(accounts || []).length - validAccounts.length} accounts with invalid IDs`);
+  }
+
+  return validAccounts;
 }
 
 async function executeAction(

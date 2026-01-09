@@ -311,20 +311,20 @@ CREATE OR REPLACE VIEW v_rule_performance AS
 SELECT
   aer.id,
   aer.user_id,
-  aer.rule_name as name,
-  aer.rule_type as search_type,
+  aer.name as name,
+  aer.search_type as search_type,
   aer.action_type,
   aer.is_active,
-  aer.total_executions as total_actions_count,
+  aer.total_actions_count as total_actions_count,
   aer.success_count,
-  aer.error_count as failure_count,
+  aer.failure_count as failure_count,
   CASE
-    WHEN aer.total_executions > 0
-    THEN ROUND((aer.success_count::NUMERIC / aer.total_executions) * 100, 1)
+    WHEN aer.total_actions_count > 0
+    THEN ROUND((aer.success_count::NUMERIC / aer.total_actions_count) * 100, 1)
     ELSE 0
   END as success_rate,
   0 as actions_today,
-  aer.max_executions_per_hour as daily_limit,
+  aer.daily_limit as daily_limit,
   aer.last_execution_at,
   NULL::TIMESTAMPTZ as next_execution_at
 FROM auto_engagement_rules aer;

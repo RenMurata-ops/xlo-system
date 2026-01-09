@@ -45,7 +45,7 @@ SELECT
   t.x_username,
   t.token_type,
   ta.app_name,
-  ta.client_id,
+  ta.api_key,
   CASE WHEN t.twitter_app_id IS NOT NULL THEN 'Assigned' ELSE 'Missing' END as status
 FROM account_tokens t
 LEFT JOIN twitter_apps ta ON ta.id = t.twitter_app_id

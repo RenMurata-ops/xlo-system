@@ -80,6 +80,8 @@ async function refreshSingleToken(
     expiresAt.setSeconds(expiresAt.getSeconds() + tokenData.expires_in);
 
     // Update token in database
+    // SECURITY: Only update token data, do NOT change is_active status
+    // If a token was manually deactivated (is_active=false), it should stay inactive
     const { error: updateError } = await supabase
       .from('account_tokens')
       .update({
@@ -89,7 +91,7 @@ async function refreshSingleToken(
         last_refreshed_at: new Date().toISOString(),
         refresh_count: (tokenRecord.refresh_count || 0) + 1,
         error_message: null,
-        is_active: true,
+        // Removed: is_active: true - preserve existing is_active status
       })
       .eq('id', tokenRecord.id);
 
