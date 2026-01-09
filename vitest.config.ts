@@ -9,7 +9,15 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./vitest.setup.ts'],
     include: ['**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['node_modules', '.next', 'e2e', 'dist', 'build'],
+    exclude: [
+      'node_modules',
+      '.next',
+      'e2e',
+      'dist',
+      'build',
+      'supabase/functions/**',
+      'lib/__tests__/database-integration.test.ts',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
