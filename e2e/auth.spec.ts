@@ -103,39 +103,39 @@ test.describe('Authentication Flow', () => {
 });
 
 /**
- * Route Access Tests (Current Behavior)
- * Documents that pages currently load without auth middleware
+ * Route Access Tests (With Auth Middleware)
+ * Verifies that protected routes redirect to login when accessed without authentication
  */
-test.describe('Route Access (No Auth Middleware)', () => {
-  test('dashboard loads without auth (SECURITY NOTE)', async ({ page }) => {
-    // Access dashboard without authentication
+test.describe('Protected Route Access Control', () => {
+  test('dashboard redirects to login without auth', async ({ page }) => {
+    // Attempt to access dashboard without authentication
     await page.goto('/dashboard');
 
-    // Currently pages load without server-side auth protection
-    // Note: Client-side auth checks may still apply
-    await expect(page).toHaveURL('http://localhost:3000/dashboard');
+    // Should redirect to login page with redirect parameter
+    await expect(page).toHaveURL(/\/auth\/login\?redirect=%2Fdashboard/);
 
-    // Page should at least not crash
+    // Login page should be visible
     await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('text=アカウントにログイン')).toBeVisible();
   });
 
-  test('accounts page loads without auth (SECURITY NOTE)', async ({ page }) => {
+  test('accounts page redirects to login without auth', async ({ page }) => {
     await page.goto('/accounts/main');
 
-    // Currently no server-side auth redirect
-    await expect(page).toHaveURL('http://localhost:3000/accounts/main');
+    // Should redirect to login page with redirect parameter
+    await expect(page).toHaveURL(/\/auth\/login\?redirect=%2Faccounts%2Fmain/);
 
-    // Page should not crash
-    await expect(page.locator('body')).toBeVisible();
+    // Login page should be visible
+    await expect(page.locator('text=アカウントにログイン')).toBeVisible();
   });
 
-  test('posts page loads without auth (SECURITY NOTE)', async ({ page }) => {
+  test('posts page redirects to login without auth', async ({ page }) => {
     await page.goto('/posts');
 
-    // Currently no server-side auth redirect
-    await expect(page).toHaveURL('http://localhost:3000/posts');
+    // Should redirect to login page with redirect parameter
+    await expect(page).toHaveURL(/\/auth\/login\?redirect=%2Fposts/);
 
-    // Page should not crash
-    await expect(page.locator('body')).toBeVisible();
+    // Login page should be visible
+    await expect(page.locator('text=アカウントにログイン')).toBeVisible();
   });
 });

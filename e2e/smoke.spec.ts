@@ -25,15 +25,15 @@ test.describe('Smoke Test', () => {
     expect(bodyText).not.toContain('Uncaught');
   });
 
-  test('dashboard page loads without auth (SECURITY ISSUE)', async ({ page }) => {
+  test('dashboard page redirects to login when not authenticated', async ({ page }) => {
     // Try to access dashboard without auth
     await page.goto('/dashboard');
 
-    // Note: Currently pages load without authentication
-    // TODO: Add auth middleware to protect these routes
-    await expect(page).toHaveURL('http://localhost:3000/dashboard');
+    // Should redirect to login with redirect parameter
+    await expect(page).toHaveURL(/\/auth\/login\?redirect=%2Fdashboard/);
 
-    // Page should at least not crash
+    // Login page should be visible
     await expect(page.locator('body')).toBeVisible();
+    await expect(page.locator('text=アカウントにログイン')).toBeVisible();
   });
 });

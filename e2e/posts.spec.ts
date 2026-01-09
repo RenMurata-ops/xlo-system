@@ -7,23 +7,19 @@ import { test, expect } from '@playwright/test';
  * Note: Tests verify UI structure and page stability without authentication
  */
 test.describe('Posts Management Page', () => {
-  test('posts page loads without crashing', async ({ page }) => {
+  test('posts page redirects to login when not authenticated', async ({ page }) => {
     await page.goto('/posts');
     await page.waitForLoadState('networkidle');
 
-    // Page should load (no server-side auth redirect currently)
-    await expect(page).toHaveURL('http://localhost:3000/posts');
+    // Should redirect to login with redirect parameter
+    await expect(page).toHaveURL(/\/auth\/login\?redirect=%2Fposts/);
 
-    // Page should not crash
+    // Login page should be visible
     await expect(page.locator('body')).toBeVisible();
-
-    // Check for no fatal errors
-    const bodyText = await page.textContent('body');
-    expect(bodyText).not.toContain('Application error');
-    expect(bodyText).not.toContain('Uncaught');
+    await expect(page.locator('text=アカウントにログイン')).toBeVisible();
   });
 
-  test('posts page renders without errors', async ({ page }) => {
+  test('posts page requires authentication', async ({ page }) => {
     await page.goto('/posts');
     await page.waitForLoadState('networkidle');
 

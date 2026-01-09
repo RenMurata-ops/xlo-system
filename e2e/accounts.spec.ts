@@ -4,27 +4,22 @@ import { test, expect } from '@playwright/test';
  * Account Management Flow E2E Tests
  * Tests account page structure and OAuth connection flow
  *
- * Note: Tests verify UI structure without actual authentication.
- * Current behavior: Pages load without server-side auth middleware.
+ * Note: Protected routes now redirect to login when not authenticated.
  */
 test.describe('Account Management Page Structure', () => {
-  test('accounts page loads and displays UI', async ({ page }) => {
+  test('accounts page redirects to login when not authenticated', async ({ page }) => {
     await page.goto('/accounts/main');
     await page.waitForLoadState('networkidle');
 
-    // Page should load (no server-side auth redirect currently)
-    await expect(page).toHaveURL('http://localhost:3000/accounts/main');
+    // Should redirect to login with redirect parameter
+    await expect(page).toHaveURL(/\/auth\/login\?redirect=%2Faccounts%2Fmain/);
 
-    // Page should not crash
+    // Login page should be visible
     await expect(page.locator('body')).toBeVisible();
-
-    // Check for no fatal errors
-    const bodyText = await page.textContent('body');
-    expect(bodyText).not.toContain('Application error');
-    expect(bodyText).not.toContain('Uncaught');
+    await expect(page.locator('text=アカウントにログイン')).toBeVisible();
   });
 
-  test('accounts page shows expected heading', async ({ page }) => {
+  test('accounts page requires authentication', async ({ page }) => {
     await page.goto('/accounts/main');
     await page.waitForLoadState('networkidle');
 
@@ -80,27 +75,27 @@ test.describe('Account-Related Pages', () => {
  * OAuth Flow Structure Tests
  */
 test.describe('OAuth Connection Flow', () => {
-  test('accounts page with OAuth success param loads', async ({ page }) => {
-    // Simulate OAuth callback with success param
+  test('accounts page with OAuth params redirects to login when not authenticated', async ({ page }) => {
+    // Attempt to access with OAuth callback parameters
     await page.goto('/accounts/main?connected=1&account_id=test-123');
     await page.waitForLoadState('networkidle');
 
-    // Should load the accounts page
-    await expect(page).toHaveURL(/\/accounts\/main/);
+    // Should redirect to login (auth required first)
+    await expect(page).toHaveURL(/\/auth\/login\?redirect=/);
 
-    // Should not crash
+    // Login page should be visible
     await expect(page.locator('body')).toBeVisible();
   });
 
-  test('oauth callback parameters are handled', async ({ page }) => {
-    // Test that query parameters don't cause crashes
+  test('oauth callback parameters redirect to login when not authenticated', async ({ page }) => {
+    // Test that query parameters are preserved through redirect
     await page.goto('/accounts/main?connected=0&error=access_denied');
     await page.waitForLoadState('networkidle');
 
-    // Should not crash
-    await expect(page.locator('body')).toBeVisible();
+    // Should redirect to login
+    await expect(page).toHaveURL(/\/auth\/login\?redirect=/);
 
-    // No fatal errors
+    // Login page should not crash
     const bodyText = await page.textContent('body');
     expect(bodyText).not.toContain('TypeError');
     expect(bodyText).not.toContain('ReferenceError');
