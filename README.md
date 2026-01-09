@@ -1,5 +1,7 @@
 # XLO - X (Twitter) Automation Platform
 
+[![Test](https://github.com/RenMurata-ops/xlo-system/actions/workflows/test.yml/badge.svg)](https://github.com/RenMurata-ops/xlo-system/actions/workflows/test.yml)
+
 X (Twitter) の自動投稿・エンゲージメント管理プラットフォーム
 
 ## 🚀 セットアップ手順
