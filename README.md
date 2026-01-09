@@ -27,16 +27,23 @@ http://localhost:3000 でアクセス
 
 #### 環境変数設定
 
+**重要**: 秘密情報は `.env.local` に設定してください。`.env.example` をコピーして使用してください。
+
+```bash
+cp .env.example .env.local
+# .env.local を編集して実際の値を設定
+```
+
 Vercelダッシュボードで以下の環境変数を設定:
 
-```
-NEXT_PUBLIC_SUPABASE_URL=https://swyiwqzlmozlqircyyzr.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3eWl3cXpsbW96bHFpcmN5eXpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3MzI4NjYsImV4cCI6MjA3ODMwODg2Nn0.MIbwT2_YIeCCVHjLF2fBFrTSpyvL7jnrqkj3sb7GMgE
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3eWl3cXpsbW96bHFpcmN5eXpyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjczMjg2NiwiZXhwIjoyMDc4MzA4ODY2fQ.mxLpbEnuIcErBwypW8fZtufWsyDPlYII0gnnZWY3THo
-DATABASE_URL=postgresql://postgres:XLO20251110%40@db.swyiwqzlmozlqircyyzr.supabase.co:5432/postgres
-NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
-ADMIN_EMAIL=sakasho0123@gmail.com
-```
+- `NEXT_PUBLIC_SUPABASE_URL`: Supabase Project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase Anon Key
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase Service Role Key (⚠️ 秘密情報)
+- `DATABASE_URL`: PostgreSQL接続文字列 (⚠️ 秘密情報)
+- `NEXT_PUBLIC_APP_URL`: アプリケーションURL
+- `ADMIN_EMAIL`: 管理者メールアドレス
+
+設定値はSupabaseダッシュボード ( https://supabase.com/dashboard ) から取得してください。
 
 ## ✅ 実装完了 - STAGE1 ~ STAGE6
 

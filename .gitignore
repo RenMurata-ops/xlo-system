@@ -42,3 +42,16 @@ ENCRYPTION_KEY_*
 *.pem
 *_SECRET.*
 EXECUTE_ENCRYPTION_*
+
+# temporary SQL files (use supabase/migrations/ instead)
+/*.sql
+
+# test artifacts
+/test-results/
+/playwright-report/
+/playwright/.cache/
+*.spec.ts.snap
+
+# logs
+logs/
+*.log
