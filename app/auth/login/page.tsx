@@ -24,8 +24,12 @@ export default function LoginPage() {
     try {
       await signIn(email, password)
       toast.success('ログインしました')
-      router.refresh()
-      router.push('/dashboard')
+
+      // Wait a bit for session to be stored
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Redirect to dashboard
+      window.location.href = '/dashboard'
     } catch (error: any) {
       toast.error(error.message || 'ログインに失敗しました')
       setLoading(false)
