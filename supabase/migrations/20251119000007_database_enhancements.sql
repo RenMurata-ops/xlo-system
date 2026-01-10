@@ -187,103 +187,14 @@ USING (user_id = auth.uid());
 -- ============================================================================
 
 -- Account Overview with token status
-CREATE OR REPLACE VIEW v_account_overview AS
-SELECT
-  ma.id,
-  ma.user_id,
-  'main' as account_type,
-  ma.account_handle as handle,
-  ma.account_name as name,
-  ma.follower_count,
-  ma.following_count,
-  ma.is_active,
-  ma.tags,
-  at.access_token IS NOT NULL as has_token,
-  at.expires_at,
-  CASE
-    WHEN at.expires_at IS NULL THEN false
-    WHEN at.expires_at < NOW() THEN true
-    ELSE false
-  END as token_expired,
-  ma.created_at
-FROM main_accounts ma
-LEFT JOIN account_tokens at ON at.account_id = ma.id AND at.account_type = 'main'
-
-UNION ALL
-
-SELECT
-  fa.id,
-  fa.user_id,
-  'follow' as account_type,
-  fa.target_handle as handle,
-  fa.target_name as name,
-  fa.followers_count as follower_count,
-  0 as following_count,
-  fa.is_active,
-  fa.tags,
-  at.access_token IS NOT NULL as has_token,
-  at.expires_at,
-  CASE
-    WHEN at.expires_at IS NULL THEN false
-    WHEN at.expires_at < NOW() THEN true
-    ELSE false
-  END as token_expired,
-  fa.created_at
-FROM follow_accounts fa
-LEFT JOIN account_tokens at ON at.account_id = fa.id AND at.account_type = 'follow'
-
-UNION ALL
-
-SELECT
-  sa.id,
-  sa.user_id,
-  'spam' as account_type,
-  sa.account_handle as handle,
-  sa.account_name as name,
-  0 as follower_count,
-  0 as following_count,
-  sa.is_active,
-  sa.tags,
-  at.access_token IS NOT NULL as has_token,
-  at.expires_at,
-  CASE
-    WHEN at.expires_at IS NULL THEN false
-    WHEN at.expires_at < NOW() THEN true
-    ELSE false
-  END as token_expired,
-  sa.created_at
-FROM spam_accounts sa
-LEFT JOIN account_tokens at ON at.account_id = sa.id AND at.account_type = 'spam';
+-- NOTE: This view will be fixed by migration 20251119000013_fix_database_views.sql
+-- Commented out to avoid migration errors during db reset
+-- CREATE OR REPLACE VIEW v_account_overview AS ...
 
 -- Post Performance View
-CREATE OR REPLACE VIEW v_post_performance AS
-SELECT
-  p.id,
-  p.user_id,
-  p.content,
-  p.status,
-  p.posted_at,
-  p.like_count,
-  p.retweet_count,
-  p.reply_count,
-  p.quote_count,
-  p.impression_count,
-  COALESCE(p.like_count, 0) + COALESCE(p.retweet_count, 0) +
-  COALESCE(p.reply_count, 0) + COALESCE(p.quote_count, 0) as total_engagement,
-  CASE
-    WHEN p.impression_count > 0
-    THEN ROUND(
-      ((COALESCE(p.like_count, 0) + COALESCE(p.retweet_count, 0) +
-        COALESCE(p.reply_count, 0) + COALESCE(p.quote_count, 0))::NUMERIC /
-       p.impression_count) * 100, 2
-    )
-    ELSE 0
-  END as engagement_rate,
-  ma.account_handle,
-  p.tags
-FROM posts p
-LEFT JOIN main_accounts ma ON ma.id = p.account_id
-WHERE p.status = 'posted';
+-- NOTE: This view will be fixed by migration 20251119000013_fix_database_views.sql
+-- Commented out to avoid migration errors during db reset
+-- CREATE OR REPLACE VIEW v_post_performance AS ...
 
 -- Dashboard Summary View
 CREATE OR REPLACE VIEW v_dashboard_summary AS

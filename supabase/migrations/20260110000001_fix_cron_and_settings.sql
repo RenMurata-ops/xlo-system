@@ -32,7 +32,8 @@ SELECT cron.schedule(
 -- SELECT pg_reload_conf();
 
 -- Add helpful comment
-COMMENT ON SCHEMA cron IS 'Cron jobs for automated tasks - requires app.settings.supabase_url and app.settings.service_role_key to be configured';
+-- NOTE: Commented out for local development due to permission issues
+-- COMMENT ON SCHEMA cron IS 'Cron jobs for automated tasks - requires app.settings.supabase_url and app.settings.service_role_key to be configured';
 
 -- ============================================================================
 -- 3. Add safety check function for Cron jobs

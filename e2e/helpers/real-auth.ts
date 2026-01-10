@@ -20,6 +20,95 @@ export interface AuthResult {
 }
 
 /**
+ * Authenticate via API and inject session into browser
+ * This uses the actual login form to ensure proper cookie handling
+ */
+export async function authenticateViaAPI(page: Page): Promise<AuthResult> {
+  const testEmail = process.env.TEST_USER_EMAIL || 'test@xlo-system.com';
+  const testPassword = process.env.TEST_USER_PASSWORD || 'TestPassword123!';
+
+  try {
+    // Navigate to login page
+    await page.goto('/auth/login');
+    await page.waitForLoadState('networkidle');
+
+    // Check if already authenticated (should redirect to dashboard)
+    if (page.url().includes('/dashboard')) {
+      return { success: true };
+    }
+
+    // Wait for and fill login form
+    const emailInput = page.locator('input#email');
+    const passwordInput = page.locator('input#password');
+    const submitButton = page.locator('button[type="submit"]').first();
+
+    // Ensure elements are visible and ready
+    await expect(emailInput).toBeVisible({ timeout: 5000 });
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await expect(submitButton).toBeVisible({ timeout: 5000 });
+
+    // Fill the form by clicking and typing (more reliable than .fill())
+    await emailInput.click();
+    await emailInput.press('Control+A'); // Select all
+    await emailInput.type(testEmail);
+
+    await passwordInput.click();
+    await passwordInput.press('Control+A'); // Select all
+    await passwordInput.type(testPassword);
+
+    // Wait a bit for React state to update
+    await page.waitForTimeout(500);
+
+    // Verify fields are filled
+    const emailValue = await emailInput.inputValue();
+    const passwordValue = await passwordInput.inputValue();
+
+    if (emailValue !== testEmail || passwordValue !== testPassword) {
+      return {
+        success: false,
+        error: `Form fields not filled correctly. Email: "${emailValue}", Password length: ${passwordValue.length}`,
+      };
+    }
+
+    // Submit the form
+    await submitButton.click();
+
+    // Wait for authentication and automatic redirect to dashboard
+    // The login page uses window.location.href which causes full page reload
+    try {
+      await page.waitForURL('**/dashboard', { timeout: 15000 });
+      return { success: true };
+    } catch (timeoutError) {
+      const currentUrl = page.url();
+
+      // Check if we ended up on dashboard anyway
+      if (currentUrl.includes('/dashboard')) {
+        return { success: true };
+      }
+
+      // Check for authentication error
+      const bodyText = await page.textContent('body');
+      if (bodyText?.includes('Invalid') || bodyText?.includes('エラー') || bodyText?.includes('失敗')) {
+        return {
+          success: false,
+          error: `Login failed - invalid credentials`,
+        };
+      }
+
+      return {
+        success: false,
+        error: `Login timeout - stuck at ${currentUrl}`,
+      };
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      error: `Authentication error: ${error.message}`,
+    };
+  }
+}
+
+/**
  * Authenticate test user and verify success
  * @throws Error if authentication fails
  */
@@ -54,8 +143,18 @@ export async function authenticateRealUser(page: Page): Promise<AuthResult> {
     // Submit form
     await submitButton.click();
 
-    // Wait for navigation (either dashboard or error)
-    await page.waitForTimeout(2000);
+    // Wait for success toast to appear
+    await page.waitForTimeout(1000);
+
+    // Wait for the page redirect (login page uses window.location.href)
+    // This will cause a full page reload to dashboard
+    try {
+      await page.waitForURL('**/dashboard', { timeout: 10000 });
+      // Successfully redirected to dashboard
+      return { success: true };
+    } catch (error) {
+      // Timeout or navigation failed, continue to error checking
+    }
 
     // Check authentication result
     const currentUrl = page.url();
@@ -164,9 +263,12 @@ export async function getUserSession(page: Page): Promise<any> {
 /**
  * Ensure test user is authenticated before running test
  * This should be used in beforeEach hooks
+ *
+ * Now uses API authentication to bypass browser context issues
  */
 export async function ensureAuthenticated(page: Page): Promise<void> {
-  const result = await authenticateRealUser(page);
+  // Try API authentication first (more reliable)
+  const result = await authenticateViaAPI(page);
 
   if (!result.success) {
     throw new Error(

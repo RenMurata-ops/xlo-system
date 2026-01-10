@@ -127,11 +127,8 @@ INSERT INTO main_accounts (
   user_id,
   handle,
   name,
-  twitter_user_id,
   follower_count,
   following_count,
-  bio,
-  profile_image_url,
   created_at,
   updated_at
 )
@@ -139,11 +136,8 @@ SELECT
   id,
   'test_main_account_1',
   'Test Main Account 1',
-  '123456789',
   1000,
   500,
-  'This is a test main account for E2E testing',
-  'https://example.com/avatar1.jpg',
   NOW(),
   NOW()
 FROM auth.users
@@ -154,7 +148,6 @@ INSERT INTO main_accounts (
   user_id,
   handle,
   name,
-  twitter_user_id,
   follower_count,
   following_count,
   created_at,
@@ -164,7 +157,6 @@ SELECT
   id,
   'test_main_account_2',
   'Test Main Account 2',
-  '987654321',
   2000,
   800,
   NOW(),
@@ -210,11 +202,9 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO follow_accounts (
   user_id,
-  handle,
-  name,
-  twitter_user_id,
-  follower_count,
-  following_count,
+  target_handle,
+  target_name,
+  followers_count,
   category,
   tags,
   created_at,
@@ -224,9 +214,7 @@ SELECT
   id,
   'test_follow_account_1',
   'Test Follow Account 1',
-  '111111111',
   5000,
-  200,
   'tech',
   ARRAY['test', 'automation'],
   NOW(),
@@ -268,9 +256,6 @@ INSERT INTO spam_accounts (
   user_id,
   handle,
   name,
-  twitter_user_id,
-  follower_count,
-  following_count,
   proxy_id,
   tags,
   created_at,
@@ -280,9 +265,6 @@ SELECT
   u.id,
   'test_spam_account_1',
   'Test Spam Account 1',
-  '222222222',
-  100,
-  50,
   p.id,
   ARRAY['test', 'spam'],
   NOW(),
@@ -379,41 +361,35 @@ ON CONFLICT DO NOTHING;
 INSERT INTO loops (
   user_id,
   loop_name,
-  loop_type,
-  template_ids,
-  selection_mode,
+  description,
   execution_interval_hours,
-  interval_minutes,
-  executor_account_ids,
   min_accounts,
   max_accounts,
-  tag_filter,
+  executor_account_ids,
+  allowed_account_tags,
+  reply_template_id,
   is_active,
-  post_count,
   created_at,
   updated_at
 )
 SELECT
   u.id,
   'Test Post Loop 1',
-  'post',
-  ARRAY[t.id],
-  'random',
+  'Test loop for E2E testing',
   2,
-  0,
+  1,
+  1,
   ARRAY[sa.id],
-  1,
-  1,
   ARRAY['test'],
+  t.id,
   false,
-  0,
   NOW(),
   NOW()
 FROM auth.users u
 CROSS JOIN templates t
 CROSS JOIN spam_accounts sa
 WHERE u.email = 'test@xlo-system.com'
-  AND t.template_name = 'Test Post Template 1'
+  AND t.template_name = 'Test Reply Template 1'
   AND sa.handle = 'test_spam_account_1'
 ON CONFLICT DO NOTHING;
 
@@ -423,17 +399,17 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO auto_engagement_rules (
   user_id,
-  rule_name,
+  name,
   search_type,
-  target_keywords,
-  action_types,
+  search_keywords,
+  action_type,
   reply_template_id,
   min_followers,
   max_followers,
   min_account_age_days,
   exclude_keywords,
-  verified_only,
-  max_actions_per_run,
+  require_verified,
+  max_actions_per_execution,
   daily_limit,
   actions_today,
   is_active,
@@ -445,7 +421,7 @@ SELECT
   'Test Engagement Rule 1',
   'keyword',
   ARRAY['test', 'automation'],
-  ARRAY['like', 'reply'],
+  'like',
   t.id,
   100,
   10000,
@@ -470,7 +446,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO dm_send_rules (
   user_id,
-  rule_name,
+  name,
   account_token_id,
   template_id,
   delay_slot_hours,

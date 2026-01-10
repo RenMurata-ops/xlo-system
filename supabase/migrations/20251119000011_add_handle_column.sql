@@ -8,13 +8,14 @@ ADD COLUMN IF NOT EXISTS handle TEXT;
 ALTER TABLE main_accounts
 ADD COLUMN IF NOT EXISTS name TEXT;
 
--- Set handle from existing data if possible (from account_name or similar)
+-- Set handle from existing data if possible
+-- NOTE: account_name may not exist in newer schemas, so we handle that case
 UPDATE main_accounts
-SET handle = COALESCE(handle, account_name, 'unknown')
+SET handle = COALESCE(handle, 'unknown_' || id::text)
 WHERE handle IS NULL;
 
 UPDATE main_accounts
-SET name = COALESCE(name, account_name, handle, 'unknown')
+SET name = COALESCE(name, handle, 'unknown_' || id::text)
 WHERE name IS NULL;
 
 -- Make handle NOT NULL after populating
@@ -43,11 +44,11 @@ ALTER TABLE spam_accounts
 ADD COLUMN IF NOT EXISTS name TEXT;
 
 UPDATE spam_accounts
-SET handle = COALESCE(handle, account_name, 'unknown')
+SET handle = COALESCE(handle, 'unknown_' || id::text)
 WHERE handle IS NULL;
 
 UPDATE spam_accounts
-SET name = COALESCE(name, account_name, handle, 'unknown')
+SET name = COALESCE(name, handle, 'unknown_' || id::text)
 WHERE name IS NULL;
 
 ALTER TABLE spam_accounts

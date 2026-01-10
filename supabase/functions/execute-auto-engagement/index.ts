@@ -21,8 +21,7 @@ interface EngagementRule {
   name: string;
   search_type: 'keyword' | 'url' | 'user' | 'hashtag';
   search_query: string;
-  action_type: 'like' | 'reply' | 'retweet' | 'follow'; // Keep for backward compatibility
-  action_types: ('like' | 'reply' | 'retweet' | 'follow')[] | null;
+  action_type: 'like' | 'reply' | 'retweet' | 'follow';
   reply_template_id: string | null;
   min_followers: number;
   max_followers: number | null;
@@ -207,17 +206,15 @@ async function executeEngagementRule(sb: any, rule: EngagementRule, traceId: str
     // Step 4: Execute actions (limit to max_actions_per_execution)
     const targets = filtered.slice(0, rule.max_actions_per_execution);
 
-    // Get action types to execute (use new action_types or fall back to old action_type)
-    const actionTypes = rule.action_types && rule.action_types.length > 0
-      ? rule.action_types
-      : [rule.action_type];
+    // Execute action for each target
+    const actionType = rule.action_type;
 
     for (const target of targets) {
       // Prepare executor pool (shuffled) for distribution
       const executorPool = [...executorAccounts].sort(() => Math.random() - 0.5);
 
-      // Execute all selected actions for this target
-      for (const actionType of actionTypes) {
+      // Execute the action for this target
+      {
         let succeeded = false;
         let rateLimited = false;
         let attempts = 0;
@@ -293,9 +290,6 @@ async function executeEngagementRule(sb: any, rule: EngagementRule, traceId: str
             return result;
           }
         }
-
-        // Small delay between actions on same target
-        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       // Delay between targets to avoid rate limits
