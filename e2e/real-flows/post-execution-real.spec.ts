@@ -117,12 +117,12 @@ test.describe('REAL Post Execution Flow', () => {
 
     // 7. Check for success message or feedback
     await page.waitForTimeout(1000);
-    const bodyText = await page.textContent('body');
+    const pageContent = await page.textContent('body');
 
     // Should not have errors
-    expect(bodyText).not.toContain('Application error');
-    expect(bodyText).not.toContain('TypeError');
-    expect(bodyText).not.toContain('Failed to post');
+    expect(pageContent).not.toContain('Application error');
+    expect(pageContent).not.toContain('TypeError');
+    expect(pageContent).not.toContain('Failed to post');
 
     // May contain success message (depending on UI implementation)
     // This is OK if not present yet - just verify no errors
