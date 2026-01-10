@@ -80,8 +80,8 @@ test.describe('REAL Post Execution Flow', () => {
       }
     }
 
-    // 4. Click "今すぐ投稿" button
-    const postButton = page.locator('button:has-text("今すぐ投稿")').first();
+    // 4. Click submit button (text shows "X件を下書き保存" or "X件を予約")
+    const postButton = page.locator('button[type="submit"]').first();
     await expect(postButton).toBeVisible({ timeout: 5000 });
 
     // Verify button is not disabled
@@ -229,8 +229,8 @@ test.describe('REAL Post Execution Flow', () => {
       await expect(textarea).toBeVisible({ timeout: 5000 });
       await textarea.fill(content);
 
-      // Click post button
-      const postButton = page.locator('button:has-text("今すぐ投稿")').first();
+      // Click submit button
+      const postButton = page.locator('button[type="submit"]').first();
 
       if (!(await postButton.isDisabled())) {
         await postButton.click();
