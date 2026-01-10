@@ -240,22 +240,17 @@ test.describe('REAL Proxy Testing', () => {
     await page.goto('/proxies');
     await page.waitForLoadState('networkidle');
 
-    // Look for status indicators
-    const successIndicator = page.locator(
-      'text=/success|成功|active|working/i, ' +
-      '.status-success, ' +
-      '[data-status="success"]'
-    ).first();
+    // Look for status indicators (using getByText for regex matching)
+    const successIndicator = page.getByText(/success|成功|active|working/i).first();
+    const failureIndicator = page.getByText(/failed|失敗|error|timeout/i).first();
 
-    const failureIndicator = page.locator(
-      'text=/failed|失敗|error|timeout/i, ' +
-      '.status-failed, ' +
-      '[data-status="failed"]'
-    ).first();
+    // Also check for CSS-based status indicators
+    const successBadge = page.locator('.status-success, [data-status="success"]').first();
+    const failureBadge = page.locator('.status-failed, [data-status="failed"]').first();
 
-    if (await successIndicator.count() > 0) {
+    if (await successIndicator.count() > 0 || await successBadge.count() > 0) {
       console.log('✓ Found success status indicator');
-    } else if (await failureIndicator.count() > 0) {
+    } else if (await failureIndicator.count() > 0 || await failureBadge.count() > 0) {
       console.log('✓ Found failure status indicator');
     } else {
       console.log('⚠ Status indicator not found');

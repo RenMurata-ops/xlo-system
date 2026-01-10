@@ -42,8 +42,14 @@ test.describe('REAL Post Execution Flow', () => {
     // Verify we're authenticated (not redirected to login)
     expect(page.url()).not.toContain('/auth/login');
 
-    // 2. Find and fill the post content textarea
-    const contentTextarea = page.locator('textarea[name="content"], textarea[placeholder*="投稿"]').first();
+    // 2. Click "新規投稿" button to open the form modal
+    const newPostButton = page.locator('button:has-text("新規投稿")').first();
+    await expect(newPostButton).toBeVisible({ timeout: 5000 });
+    await newPostButton.click();
+    await page.waitForTimeout(500); // Wait for modal to appear
+
+    // 3. Find and fill the post content textarea (now inside modal)
+    const contentTextarea = page.locator('textarea[placeholder*="ツイート"]').first();
     await expect(contentTextarea).toBeVisible({ timeout: 5000 });
 
     const testPostContent = `これはE2Eテストからの投稿です - ${new Date().toISOString()}`;
@@ -213,8 +219,14 @@ test.describe('REAL Post Execution Flow', () => {
     for (let i = 1; i <= 3; i++) {
       const content = `テスト投稿 #${i} - ${Date.now()}`;
 
+      // Open new post modal
+      const newPostButton = page.locator('button:has-text("新規投稿")').first();
+      await newPostButton.click();
+      await page.waitForTimeout(500);
+
       // Fill content
-      const textarea = page.locator('textarea').first();
+      const textarea = page.locator('textarea[placeholder*="ツイート"]').first();
+      await expect(textarea).toBeVisible({ timeout: 5000 });
       await textarea.fill(content);
 
       // Click post button
@@ -275,7 +287,14 @@ test.describe('REAL Post Form Validation', () => {
     await page.goto('/posts');
     await page.waitForLoadState('networkidle');
 
-    const textarea = page.locator('textarea').first();
+    // Open new post modal
+    const newPostButton = page.locator('button:has-text("新規投稿")').first();
+    await expect(newPostButton).toBeVisible({ timeout: 5000 });
+    await newPostButton.click();
+    await page.waitForTimeout(500);
+
+    const textarea = page.locator('textarea[placeholder*="ツイート"]').first();
+    await expect(textarea).toBeVisible({ timeout: 5000 });
     await textarea.fill('Test content');
 
     // Look for character counter (common in Twitter-like UIs)

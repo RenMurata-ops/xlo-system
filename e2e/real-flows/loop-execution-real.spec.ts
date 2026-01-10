@@ -356,25 +356,30 @@ test.describe('REAL Loop Execution Logs', () => {
     await page.goto('/loops');
     await page.waitForLoadState('networkidle');
 
-    // Look for execution logs section
-    const logsSection = page.locator(
-      '[data-testid="execution-logs"], ' +
-      '.execution-logs, ' +
-      'text=/実行ログ|Execution Logs/'
-    ).first();
+    // Find and click the logs button (PlayCircle icon with aria-label="ログ")
+    const logsButton = page.locator('button[aria-label="ログ"]').first();
 
-    if (await logsSection.count() > 0) {
-      await expect(logsSection).toBeVisible();
-      console.log('✓ Execution logs section found');
+    if (await logsButton.count() > 0) {
+      await logsButton.click();
+      await page.waitForTimeout(500); // Wait for modal to appear
 
-      // Check for log entries
-      const logEntries = page.locator('.log-entry, .execution-record, tr[data-execution-id]');
-      const logCount = await logEntries.count();
+      // Look for execution logs modal
+      const logsModal = page.locator('h2:has-text("実行ログ")').first();
 
-      console.log(`Found ${logCount} execution log entries`);
+      if (await logsModal.count() > 0) {
+        await expect(logsModal).toBeVisible();
+        console.log('✓ Execution logs modal opened successfully');
+
+        // Check for log entries within modal
+        const logEntries = page.locator('.log-entry, .execution-record, tr');
+        const logCount = await logEntries.count();
+
+        console.log(`Found ${logCount} execution log entries`);
+      } else {
+        console.log('⚠ Execution logs modal not found after clicking button');
+      }
     } else {
-      console.log('⚠ Execution logs section not found');
-      console.log('May need to execute a loop first to see logs');
+      console.log('⚠ No logs button found (may need at least one loop)');
     }
   });
 

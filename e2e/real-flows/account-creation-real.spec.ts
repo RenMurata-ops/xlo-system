@@ -344,17 +344,9 @@ test.describe('REAL Account Token Status', () => {
     await page.goto('/accounts/main');
     await page.waitForLoadState('networkidle');
 
-    // Look for connection status indicators
-    const connectedIndicator = page.locator(
-      'text=/connected|接続済み|active/i, ' +
-      '.status-connected, ' +
-      '[data-status="connected"]'
-    ).first();
-
-    const disconnectedIndicator = page.locator(
-      'text=/not connected|未接続|disconnected/i, ' +
-      '.status-disconnected'
-    ).first();
+    // Look for connection status indicators (exact text from MainAccountCard)
+    const connectedIndicator = page.locator('span:has-text("X連携済み")').first();
+    const disconnectedIndicator = page.locator('span:has-text("未連携")').first();
 
     if (await connectedIndicator.count() > 0) {
       console.log('✓ Found connected status indicator');
